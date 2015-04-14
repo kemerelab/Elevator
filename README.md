@@ -1,2 +1,9 @@
-# elevator
-Design and control files for elevator maze and assembly
+# Rodent Elevator Maze
+Design and control files for elevator maze and assembly.
+
+First, this:
+
+![elevator](/.images/jtag.png?raw=true "elevator")
+
+## A few notes about how to use it:
+
