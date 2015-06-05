@@ -1,0 +1,5 @@
+<RCC>
+  <qresource prefix="RNELicon">
+    <file>RNELBanner.png</file>
+  </qresource>
+</RCC>
