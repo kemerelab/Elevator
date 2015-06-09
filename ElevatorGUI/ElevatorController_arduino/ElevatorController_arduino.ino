@@ -3,14 +3,6 @@
 #include <Adafruit_MotorShield.h>
 #include "utility/Adafruit_PWMServoDriver.h"
 
-#define F 1
-#define B 2
-
-#define S 1
-#define D 2
-#define I 3
-#define M 4
-
 int motorSteps = 200; // NEMA 17 number of steps per revolution
 int motorPort = 2; // indicates motor connected to M3 & M4 terminals on shield
 
@@ -20,7 +12,7 @@ Adafruit_StepperMotor *myStepper = AFMS.getStepper(motorSteps, motorPort);
 
 String input_speed; 
 String input_step;  
-char input_direction; 
+String input_direction; 
 char input_mode; 
 
 int motor_speed; 
@@ -37,26 +29,26 @@ void loop(){
   if(Serial.available()){
     String data = Serial.readString(); 
     input_speed = data.substring(1,5);
-    input_step = data.substring(6,10);
-    input_direction = data.charAt(11);
-    input_mode = data.charAt(13); 
+    input_step = data.substring(6,12);
+    input_mode = data.charAt(13);
+    input_direction = data.substring(15); 
     
     motor_speed = input_speed.toInt(); 
     motor_step = input_step.toInt();
     
-    if(input_direction == 'F')
-      motor_direction = F; 
-    else if (input_direction == 'B')
-      motor_direction = B; 
+    if(input_direction == "Up")
+      motor_direction = FORWARD; 
+    else if (input_direction == "Down")
+      motor_direction = BACKWARD; 
     
     if(input_mode == 'D')
-      motor_mode = D; 
+      motor_mode = DOUBLE; 
     else if(input_mode == 'S')
-      motor_mode = S; 
+      motor_mode = SINGLE; 
     else if(input_mode == 'I')
-      motor_mode = I; 
+      motor_mode = INTERLEAVE; 
     else if(input_mode == 'M')
-      motor_mode = M; 
+      motor_mode = MICROSTEP; 
 
     myStepper -> setSpeed(motor_speed);
     myStepper -> step(motor_step, motor_direction, motor_mode); // values passed to function are dictated by user 

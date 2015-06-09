@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'ElevatorController.ui'
+# Form implementation generated from reading ui file 'ElevatorController_v2.ui'
 #
-# Created: Fri Jun  5 10:36:55 2015
+# Created: Tue Jun  9 12:11:32 2015
 #      by: PyQt4 UI code generator 4.10.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -34,7 +34,7 @@ class Ui_Form(QtGui.QWidget):
 
     def setupUi(self, Form):
         Form.setObjectName(_fromUtf8("Form"))
-        Form.resize(271, 427)
+        Form.resize(285, 455)
         Form.setMouseTracking(False)
         Form.setFocusPolicy(QtCore.Qt.NoFocus)
         self.formLayout_2 = QtGui.QFormLayout(Form)
@@ -120,10 +120,10 @@ class Ui_Form(QtGui.QWidget):
         self.lineEdit_speed.setPlaceholderText(_fromUtf8(""))
         self.lineEdit_speed.setObjectName(_fromUtf8("lineEdit_speed"))
         self.formLayout_3.setWidget(0, QtGui.QFormLayout.LabelRole, self.lineEdit_speed)
-        self.lineEdit_steps = QtGui.QLineEdit(self.widget)
-        self.lineEdit_steps.setMaximumSize(QtCore.QSize(111, 27))
-        self.lineEdit_steps.setObjectName(_fromUtf8("lineEdit_steps"))
-        self.formLayout_3.setWidget(1, QtGui.QFormLayout.LabelRole, self.lineEdit_steps)
+        self.lineEdit_distance = QtGui.QLineEdit(self.widget)
+        self.lineEdit_distance.setMaximumSize(QtCore.QSize(111, 27))
+        self.lineEdit_distance.setObjectName(_fromUtf8("lineEdit_distance"))
+        self.formLayout_3.setWidget(1, QtGui.QFormLayout.LabelRole, self.lineEdit_distance)
         self.comboBox_direction = QtGui.QComboBox(self.widget)
         self.comboBox_direction.setMaximumSize(QtCore.QSize(111, 27))
         self.comboBox_direction.setObjectName(_fromUtf8("comboBox_direction"))
@@ -138,6 +138,12 @@ class Ui_Form(QtGui.QWidget):
         self.comboBox_mode.addItem(_fromUtf8(""))
         self.comboBox_mode.addItem(_fromUtf8(""))
         self.formLayout_3.setWidget(4, QtGui.QFormLayout.SpanningRole, self.comboBox_mode)
+        self.label_in = QtGui.QLabel(self.widget)
+        self.label_in.setObjectName(_fromUtf8("label_in"))
+        self.formLayout_3.setWidget(1, QtGui.QFormLayout.FieldRole, self.label_in)
+        self.label_RPM = QtGui.QLabel(self.widget)
+        self.label_RPM.setObjectName(_fromUtf8("label_RPM"))
+        self.formLayout_3.setWidget(0, QtGui.QFormLayout.FieldRole, self.label_RPM)
         self.horizontalLayout.addLayout(self.formLayout_3)
         self.formLayout_4.setLayout(3, QtGui.QFormLayout.LabelRole, self.horizontalLayout)
         self.gridLayout.addWidget(self.widget, 1, 0, 1, 1, QtCore.Qt.AlignHCenter)
@@ -153,30 +159,37 @@ class Ui_Form(QtGui.QWidget):
         self.label_website.setText(_translate("Form", "http://www.fakewebsite.com", None))
         self.label_motorState.setText(_translate("Form", "    Stepper Motor State", None))
         self.label_speed.setText(_translate("Form", "Speed:", None))
-        self.label_steps.setText(_translate("Form", "Steps:", None))
+        self.label_steps.setText(_translate("Form", "Distance:", None))
         self.label_direction.setText(_translate("Form", "Direction:", None))
         self.label_mode.setText(_translate("Form", "Mode:", None))
         self.lineEdit_speed.setText(_translate("Form", "100", None))
-        self.lineEdit_steps.setText(_translate("Form", "200", None))
-        self.comboBox_direction.setItemText(0, _translate("Form", "Forward", None))
-        self.comboBox_direction.setItemText(1, _translate("Form", "Backward", None))
+        self.lineEdit_distance.setText(_translate("Form", "12", None))
+        self.comboBox_direction.setItemText(0, _translate("Form", "Up", None))
+        self.comboBox_direction.setItemText(1, _translate("Form", "Down", None))
         self.comboBox_mode.setItemText(0, _translate("Form", "Double", None))
         self.comboBox_mode.setItemText(1, _translate("Form", "Single", None))
         self.comboBox_mode.setItemText(2, _translate("Form", "Microstep", None))
         self.comboBox_mode.setItemText(3, _translate("Form", "Interleave", None))
+        self.label_in.setText(_translate("Form", "in.", None))
+        self.label_RPM.setText(_translate("Form", "RPM", None))
         self.btn_run.clicked.connect(self.sendMotorData)
 
     def sendMotorData(self):
         speed_string = "0123"
-        steps_string = "0123"
-        direction_string = "Y"
+        steps_string = "012345"
+        direction_string = ""
         mode_string = "Z"
         data = ""
 
         speed = self.lineEdit_speed.text()
-        steps = self.lineEdit_steps.text()
-        direction = self.comboBox_direction.currentText()[0]
+        distance = self.lineEdit_distance.text()
+        direction = self.comboBox_direction.currentText()
         mode = self.comboBox_mode.currentText()[0]
+
+        steps = float(distance) * 646.806393
+        steps = str(int(round(steps)))
+        print steps
+        print len(steps)
 
         if len(speed) == 1:
             speed_string = speed_string.replace('3', speed, 1)
@@ -190,24 +203,28 @@ class Ui_Form(QtGui.QWidget):
             speed_string = speed_string.replace('0123', speed, 1)
 
         if len(steps) == 1:
-            steps_string = steps_string.replace('3', steps, 1)
-            steps_string = steps_string.replace('12', '00', 1)
+            steps_string = steps_string.replace('5', steps, 1)
+            steps_string = steps_string.replace('01234', '00000', 1)
         elif len(steps) == 2:
-            steps_string = steps_string.replace('23', steps, 1)
-            steps_string = steps_string.replace('1', '0', 1)
+            steps_string = steps_string.replace('45', steps, 1)
+            steps_string = steps_string.replace('0123', '0000', 1)
         elif len(steps) == 3:
-            steps_string = steps_string.replace('123', steps, 1)
+            steps_string = steps_string.replace('345', steps, 1)
+            steps_string = steps_string.replace('012', '000', 1)
         elif len(steps) == 4:
-            steps_string = steps_string.replace('0123', steps, 1)
+            steps_string = steps_string.replace('2345', steps, 1)
+            steps_string = steps_string.replace('01', '00', 1)
+        elif len(steps) == 5:
+            steps_string = steps_string.replace('12345', steps, 1)
+        elif len(steps) == 6:
+            steps_string = steps_string.replace('012345', steps, 1)
 
-
-        direction_string = direction_string.replace('Y', direction[0], 1)
         mode_string = mode_string.replace('Z', mode[0], 1)
 
-        data = 'x'+speed_string+'x'+steps_string+'x'+direction_string+'x'+mode_string 
+        data = 'x'+speed_string+'x'+steps_string+'x'+mode_string+'x'+direction
 
         arduino.write(str(data)) 
-        print str(data)
+        print str(data)       
 
 import RNELBanner_rc
 

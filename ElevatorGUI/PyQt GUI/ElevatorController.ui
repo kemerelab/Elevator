@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>271</width>
-    <height>427</height>
+    <width>285</width>
+    <height>455</height>
    </rect>
   </property>
   <property name="mouseTracking">
@@ -128,7 +128,7 @@
        </widget>
       </item>
       <item row="1" column="0" alignment="Qt::AlignHCenter">
-       <widget class="QWidget" name="" native="true">
+       <widget class="QWidget" name="widget" native="true">
         <layout class="QFormLayout" name="formLayout_4">
          <property name="fieldGrowthPolicy">
           <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
@@ -175,7 +175,7 @@
              <item>
               <widget class="QLabel" name="label_steps">
                <property name="text">
-                <string>Steps:</string>
+                <string>Distance:</string>
                </property>
               </widget>
              </item>
@@ -214,7 +214,7 @@
               </widget>
              </item>
              <item row="1" column="0">
-              <widget class="QLineEdit" name="lineEdit_steps">
+              <widget class="QLineEdit" name="lineEdit_distance">
                <property name="maximumSize">
                 <size>
                  <width>111</width>
@@ -222,7 +222,7 @@
                 </size>
                </property>
                <property name="text">
-                <string>200</string>
+                <string>12</string>
                </property>
               </widget>
              </item>
@@ -236,12 +236,12 @@
                </property>
                <item>
                 <property name="text">
-                 <string>Forward</string>
+                 <string>Up</string>
                 </property>
                </item>
                <item>
                 <property name="text">
-                 <string>Backward</string>
+                 <string>Down</string>
                 </property>
                </item>
               </widget>
@@ -274,6 +274,20 @@
                  <string>Interleave</string>
                 </property>
                </item>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QLabel" name="label_in">
+               <property name="text">
+                <string>in.</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QLabel" name="label_RPM">
+               <property name="text">
+                <string>RPM</string>
+               </property>
               </widget>
              </item>
             </layout>
