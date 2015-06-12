@@ -157,7 +157,7 @@ class Ui_Form(QtGui.QWidget):
         self.btn_run.setText(_translate("Form", "Run", None))
         self.label_instructions.setText(_translate("Form", "Please visit the following site for instructions :", None))
         self.label_website.setText(_translate("Form", "http://www.fakewebsite.com", None))
-        self.label_motorState.setText(_translate("Form", "    Stepper Motor State", None))
+        self.label_motorState.setText(_translate("Form", "    Stepper Motor Parameters", None))
         self.label_speed.setText(_translate("Form", "Speed:", None))
         self.label_steps.setText(_translate("Form", "Distance:", None))
         self.label_direction.setText(_translate("Form", "Direction:", None))
