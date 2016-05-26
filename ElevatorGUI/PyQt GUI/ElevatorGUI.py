@@ -39,7 +39,7 @@ class Ui_Form(QtGui.QWidget):
 
         label_website = QtGui.QLabel(frame)
         label_website.setFont(font)
-        label_website.setText("<a href=\"http://nel.rice.edu/\">Elevator Maze</a>")
+        label_website.setText("<a href=\"https://github.com/kemerelab/Elevator/\">Elevator Maze</a>")
         label_website.setTextInteractionFlags(QtCore.Qt.LinksAccessibleByMouse)
         label_website.setOpenExternalLinks(True)
 
@@ -122,6 +122,13 @@ class Ui_Form(QtGui.QWidget):
         distance, distance_valid = QtCore.QString.toFloat(self.lineEdit_distance.text())
         direction = self.comboBox_direction.currentText()
 
+        invalid_box = QtGui.QMessageBox()
+        invalid_box.setIcon(QtGui.QMessageBox.Warning)
+        if speed_valid == False or distance_valid == False:
+            invalid_box.setText("Invalid input(s).")
+            invalid_box.setInformativeText("The motor will receive the default values of 0.")
+            invalid_box.exec_()
+
         mode = self.comboBox_mode.currentText()[2:]
         while len(mode) < 3:
             mode = "0" + mode
@@ -135,15 +142,19 @@ class Ui_Form(QtGui.QWidget):
             speed = "0" + speed
 
         # set limits depending on height of maze
-        if (direction == "Up" and distance > (maxHeight - self.currentPosition)):
-            distance = maxHeight - self.currentPosition
-            self.currentPosition = maxHeight
-        elif direction == "Up":
+        if direction == "Up":
+            if distance > maxHeight - self.currentPosition:
+                invalid_box.setText("Distance exceeds maze height.")
+                invalid_box.setInformativeText("The elevator will move to the top of the maze.")
+                invalid_box.exec_()
+                distance = maxHeight - self.currentPosition
             self.currentPosition += distance
-        elif (direction == "Down" and distance > (self.currentPosition - minHeight)):
-            distance = self.currentPosition
-            self.currentPosition = minHeight
-        else:
+        if direction == "Down":
+            if distance > self.currentPosition - minHeight:
+                invalid_box.setText("Distance exceeds bottom of maze.")
+                invalid_box.setInformativeText("The elevator will move to the bottom of the maze.")
+                invalid_box.exec_()
+                distance = self.currentPosition - minHeight
             self.currentPosition -= distance
 
         # steps_perInch depends on pulley diameter; using NEMA23 drive shaft diameter (6.35mm) for now
@@ -157,13 +168,11 @@ class Ui_Form(QtGui.QWidget):
 
         arduino.write(str(data)) 
         print str(data)
-        print self.currentPosition       
+        print "Distance: ", distance
+        print "Current Position: ", self.currentPosition       
 
-# following code is not executed if this module is imported
 if __name__ == '__main__':
-    # calls constructor of QApplication to initialize QT application
     app = QtGui.QApplication(sys.argv)
-
     ex = Ui_Form()
     ex.show()
     ex.raise_()
