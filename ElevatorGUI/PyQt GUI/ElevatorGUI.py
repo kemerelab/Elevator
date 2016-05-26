@@ -17,6 +17,7 @@ arduino = Serial('/dev/cu.usbmodem1411', 115200)
 class Ui_Form(QtGui.QWidget):
     def __init__(self):
         super(Ui_Form, self).__init__()
+        self.currentPosition = 0
         self.setupUi()
 
     def setupUi(self):
@@ -94,7 +95,7 @@ class Ui_Form(QtGui.QWidget):
         self.comboBox_direction.addItems(["Up", "Down"])
         self.comboBox_mode = QtGui.QComboBox(widget)
         self.comboBox_mode.setMaximumSize(QtCore.QSize(111, 27))
-        self.comboBox_mode.addItems(["Single", "Double", "Interleave", "Microstep"])
+        self.comboBox_mode.addItems(["1/1", "1/2", "1/4", "1/8", "1/16", "1/32", "1/64", "1/128"])
         label_in = QtGui.QLabel("in.", widget)
         label_RPM = QtGui.QLabel("RPM", widget)
 
@@ -116,10 +117,14 @@ class Ui_Form(QtGui.QWidget):
         btn_run.clicked.connect(self.sendMotorData)
 
     def sendMotorData(self):
+        minHeight, maxHeight = 0, 200
         speed, speed_valid = QtCore.QString.toFloat(self.lineEdit_speed.text())
         distance, distance_valid = QtCore.QString.toFloat(self.lineEdit_distance.text())
         direction = self.comboBox_direction.currentText()
-        mode = self.comboBox_mode.currentText()[0]
+
+        mode = self.comboBox_mode.currentText()[2:]
+        while len(mode) < 3:
+            mode = "0" + mode
 
         # RPMs of higher than 43 will result in skipped steps; set upper limit
         if speed > 43:
@@ -129,9 +134,17 @@ class Ui_Form(QtGui.QWidget):
         while len(speed) < 4:
             speed = "0" + speed
 
-        # set upper limit depending on height of maze
-        if distance > 200:
-            distance = 0
+        # set limits depending on height of maze
+        if (direction == "Up" and distance > (maxHeight - self.currentPosition)):
+            distance = maxHeight - self.currentPosition
+            self.currentPosition = maxHeight
+        elif direction == "Up":
+            self.currentPosition += distance
+        elif (direction == "Down" and distance > (self.currentPosition - minHeight)):
+            distance = self.currentPosition
+            self.currentPosition = minHeight
+        else:
+            self.currentPosition -= distance
 
         # steps_perInch depends on pulley diameter; using NEMA23 drive shaft diameter (6.35mm) for now
         steps_perInch = 254.647771437
@@ -143,7 +156,8 @@ class Ui_Form(QtGui.QWidget):
         data = 'x'+speed+'x'+steps+'x'+mode+'x'+direction
 
         arduino.write(str(data)) 
-        print str(data)       
+        print str(data)
+        print self.currentPosition       
 
 # following code is not executed if this module is imported
 if __name__ == '__main__':
