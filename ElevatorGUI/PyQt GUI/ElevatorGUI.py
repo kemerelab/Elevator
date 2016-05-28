@@ -94,12 +94,8 @@ class Ui_Form(QtGui.QWidget):
         direction = self.comboBox_direction.currentText()
 
         # Display error message for invalid inputs
-        invalid_box = QtGui.QMessageBox()
-        invalid_box.setIcon(QtGui.QMessageBox.Warning)
         if speed_valid == False or distance_valid == False:
-            invalid_box.setText("<br>Invalid input(s).")
-            invalid_box.setInformativeText("<big>Inputs must be numbers.")
-            invalid_box.exec_()
+            self.errorMessage(0)
 
         mode = self.comboBox_mode.currentText()[2:]
         while len(mode) < 3:
@@ -107,30 +103,26 @@ class Ui_Form(QtGui.QWidget):
 
         # Warn user if speed has not been set
         if speed == 0 and speed_valid == True:
-            invalid_box.setText("<br>The speed has not been set.")
-            invalid_box.setInformativeText("<big>Please set a speed to start the motor.")
-            invalid_box.exec_()
+            self.errorMessage(1)
 
         # RPMs of higher than 43 will result in skipped steps; set upper limit
         if speed > 43:
-            invalid_box.setText("<br>Maximum RPM exceeded.")
-            invalid_box.setInformativeText("<big>Please use a speed no greater than 43 RPM to avoid skipped steps.")
-            invalid_box.exec_()
+            self.errorMessage(3)
             speed = 0
 
-        # set limits depending on height of maze
+        # Warn user if distance has not been set
+        if distance == 0 and distance_valid == True:
+            self.errorMessage(2)
+
+        # Do not step past the top and bottom of the maze
         if direction == "Up" and speed != 0:
             if distance > maxHeight - self.currentPosition:
-                invalid_box.setText("<br>Distance exceeds maze height.")
-                invalid_box.setInformativeText("<big>The elevator will stop at the top of the maze.")
-                invalid_box.exec_()
+                self.errorMessage(4)
                 distance = maxHeight - self.currentPosition
             self.currentPosition += distance
         if direction == "Down" and speed != 0:
             if distance > self.currentPosition - minHeight:
-                invalid_box.setText("<br>Distance exceeds bottom of maze.")
-                invalid_box.setInformativeText("<big>The elevator will stop at the bottom of the maze.")
-                invalid_box.exec_()
+                self.errorMessage(5)
                 distance = self.currentPosition - minHeight
             self.currentPosition -= distance
 
@@ -150,7 +142,32 @@ class Ui_Form(QtGui.QWidget):
         #arduino.write(str(data)) 
         print str(data)
         print "Distance: ", distance
-        print "Current Position: ", self.currentPosition       
+        print "Current Position: ", self.currentPosition
+
+    def errorMessage(self, num):
+        invalid_box = QtGui.QMessageBox()
+        invalid_box.setIcon(QtGui.QMessageBox.Warning)
+
+        if num == 0:
+            invalid_box.setText("<br>Invalid input(s).")
+            invalid_box.setInformativeText("<big>Inputs must be numbers.")
+        if num == 1:
+            invalid_box.setText("<br>The speed has not been set.")
+            invalid_box.setInformativeText("<big>Please set a speed to start the motor.")
+        if num == 2:
+            invalid_box.setText("<br>The distance has not been set.")
+            invalid_box.setInformativeText("<big>Please set a distance to start the motor.")            
+        if num == 3:
+            invalid_box.setText("<br>Maximum RPM exceeded.")
+            invalid_box.setInformativeText("<big>Please use a speed no greater than 43 RPM to avoid skipped steps.")
+        if num == 4:
+            invalid_box.setText("<br>Distance exceeds maze height.")
+            invalid_box.setInformativeText("<big>The elevator will stop at the top of the maze.")
+        if num == 5:
+            invalid_box.setText("<br>Distance exceeds bottom of maze.")
+            invalid_box.setInformativeText("<big>The elevator will stop at the bottom of the maze.")
+
+        invalid_box.exec_()
 
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
