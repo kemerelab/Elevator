@@ -4,10 +4,14 @@
 
 import sys
 import RNELBanner_rc
+import time
 from PyQt4 import QtCore, QtGui
 from serial import *
 
-# arduino = Serial('/dev/cu.usbmodem1411', 115200)
+try:
+    arduino = Serial('/dev/cu.usbmodem1411', 115200)
+except:
+    pass
 
 class Ui_Form(QtGui.QWidget):
     def __init__(self):
@@ -72,8 +76,10 @@ class Ui_Form(QtGui.QWidget):
         self.command_history = QtGui.QPlainTextEdit()
         self.command_history.setMaximumSize(QtCore.QSize(1000, 100))
         self.command_history.setReadOnly(True)
+        self.command_history.appendPlainText("Note: The speed and steps inputs must be positive integers. Numbers that are not integers will be rounded down.")
+        self.command_history.appendPlainText("")
 
-        font = QtGui.QFont("Helvetica", 11)
+        font = QtGui.QFont("Helvetica", 12)
         label_instructions = QtGui.QLabel("Please visit the following site for instructions:")
         label_instructions.setFont(font)
 
@@ -82,7 +88,6 @@ class Ui_Form(QtGui.QWidget):
         label_website.setText("<a href=\"https://github.com/kemerelab/Elevator/\">Elevator Maze</a>")
         label_website.setTextInteractionFlags(QtCore.Qt.LinksAccessibleByMouse)
         label_website.setOpenExternalLinks(True)
-
 
         # Format UI elements
         formLayout = QtGui.QFormLayout()
@@ -134,9 +139,14 @@ class Ui_Form(QtGui.QWidget):
         # Reassign elevator levels if necessary
         current_level = int(self.comboBox_level.currentText())
         difference = self.currentPosition - self.level_position[current_level]
-        for level in self.level_position.keys():
-            self.level_position[level] += difference
-        self.command_history.appendPlainText("New level positions:")
+        if difference != 0:        
+            for level in self.level_position.keys():
+                self.level_position[level] += difference
+            self.command_history.appendPlainText("New level positions:")
+        else:
+            self.errorMessage(7)
+            self.command_history.appendPlainText("Current level positions:")
+
         self.command_history.appendPlainText("Level 1: " + str(self.level_position[1]))
         self.command_history.appendPlainText("Level 2: " + str(self.level_position[2]))
         self.command_history.appendPlainText("Level 3: " + str(self.level_position[3]))
@@ -153,6 +163,7 @@ class Ui_Form(QtGui.QWidget):
             self.btn_assign.setEnabled(True)
 
     def sendMotorData(self):
+        self.btn_run.setEnabled(False)
         minHeight, maxHeight = 0, 200000
         speed, speed_valid = QtCore.QString.toFloat(self.lineEdit_speed.text())
         torque = str(self.comboBox_torque.currentText()[0])
@@ -170,7 +181,6 @@ class Ui_Form(QtGui.QWidget):
             else:
                 direction = "Up"
 
-
         # Display error message for invalid inputs
         if speed_valid == False or steps_valid == False:
             self.errorMessage(0)
@@ -179,8 +189,8 @@ class Ui_Form(QtGui.QWidget):
         if speed == 0 and speed_valid == True:
             self.errorMessage(1)
 
-        # Do not allow RPMs that exceed the maximum RPM
-        if speed > 134:
+        # Do not allow RPMs that exceed the maximum RPM or are less than 0
+        if speed > 134 or speed < 0:
             self.errorMessage(2)
             speed = 0
 
@@ -194,6 +204,11 @@ class Ui_Form(QtGui.QWidget):
                 self.errorMessage(3)
             if self.preset_checkbox.checkState() == 2:
                 self.errorMessage(6)
+
+        # Do not allow negative steps
+        if steps < 0:
+            self.errorMessage(8)
+            steps = 0
 
         # Do not step past the top and bottom of the maze
         if direction == "Up" and speed != 0:
@@ -219,10 +234,26 @@ class Ui_Form(QtGui.QWidget):
             steps = "0" + steps
 
         data = 'x'+speed+'x'+steps+'x'+mode+'x'+torque+'x'+direction
+        app.processEvents()
 
-        # arduino.write(data)
+        try:
+            arduino.write(data)
+
+            # Block new inputs until Arduino is ready or after a timeout of thirty seconds has passed, whichever comes first.
+            # The "Run" button accepts mouse events even when disabled. Use processEvents() to ignore these events and prevent
+            # the button from being automatically clicked once enabled.
+            write_timeout = time.time() + 30
+            while 1:
+                if str(arduino.read(23).decode()) == "Ready for next command." or time.time() > write_timeout:
+                    app.processEvents()                    
+                    break
+        except:
+            self.command_history.appendPlainText("The Arduino is not connected.")
+
         self.command_history.appendPlainText(data)
         self.command_history.appendPlainText("Current position: " + str(self.currentPosition))
+        app.processEvents()
+        self.btn_run.setEnabled(True)
 
     def errorMessage(self, num):
         invalid_box = QtGui.QMessageBox()
@@ -235,8 +266,8 @@ class Ui_Form(QtGui.QWidget):
             invalid_box.setText("<br>The speed has not been set.")
             invalid_box.setInformativeText("<big>Please set a speed to start the motor.")
         if num == 2:
-            invalid_box.setText("<br>Maximum RPM exceeded.")
-            invalid_box.setInformativeText("<big>The motor does not support speeds greater than 150 RPM.")           
+            invalid_box.setText("<br>The speed cannot be set.")
+            invalid_box.setInformativeText("<big>The speed must be greater than 0 but less than the maximum RPM of 150.")           
         if num == 3:
             invalid_box.setText("<br>The distance has not been set.")
             invalid_box.setInformativeText("<big>Please set a distance to start the motor.") 
@@ -247,8 +278,14 @@ class Ui_Form(QtGui.QWidget):
             invalid_box.setText("<br>Distance exceeds bottom of maze.")
             invalid_box.setInformativeText("<big>The elevator will stop at the bottom of the maze.")
         if num == 6:
-            invalid_box.setText("<br>The distance has not been set.")
-            invalid_box.setInformativeText("<big>The elevator is already on this level.")             
+            invalid_box.setText("<br>The distance cannot be set.")
+            invalid_box.setInformativeText("<big>The elevator is already on this level.")  
+        if num == 7:
+            invalid_box.setText("<br>The levels cannot be assigned.")
+            invalid_box.setInformativeText("<big>This level is already assigned to the current position.")
+        if num == 8:
+            invalid_box.setText("<br>The distance cannot be set.")
+            invalid_box.setInformativeText("<big>The number of steps must be greater than 0.")             
 
         invalid_box.exec_()
 
