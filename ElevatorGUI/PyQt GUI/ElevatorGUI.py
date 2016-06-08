@@ -4,7 +4,6 @@
 
 import sys
 import RNELBanner_rc
-import time
 from PyQt4 import QtCore, QtGui
 from serial import *
 
@@ -63,19 +62,20 @@ class Ui_Form(QtGui.QWidget):
         label_level = QtGui.QLabel("Level:")
         self.comboBox_level = QtGui.QComboBox()
         self.comboBox_level.addItems(["1", "2", "3"])
+        self.comboBox_level.setEnabled(False)
         label_assign = QtGui.QLabel("Assign position to level?")
         self.btn_assign = QtGui.QPushButton("Assign")
-        self.btn_assign.setMaximumSize(QtCore.QSize(80, 30))
         self.btn_assign.setEnabled(False)
 
         self.btn_run = QtGui.QPushButton("Run")
-        self.btn_run.setMaximumSize(QtCore.QSize(50, 30))
+        self.progress_bar = QtGui.QProgressBar()
 
         label_history = QtGui.QLabel("Command History")
         label_history.setFont(font)
         self.command_history = QtGui.QPlainTextEdit()
-        self.command_history.setMaximumSize(QtCore.QSize(1000, 100))
+        self.command_history.setMaximumSize(QtCore.QSize(1000, 500))
         self.command_history.setReadOnly(True)
+        self.command_history.appendPlainText("Note: The speed will be scaled according to the microstepping mode.")
         self.command_history.appendPlainText("Note: The speed and steps inputs must be positive integers. Numbers that are not integers will be rounded down.")
         self.command_history.appendPlainText("")
 
@@ -107,7 +107,7 @@ class Ui_Form(QtGui.QWidget):
         verticalLayout = QtGui.QVBoxLayout()
         verticalLayout.addWidget(self.preset_checkbox)
         verticalLayout.addLayout(formLayout2)
-        verticalLayout.addStretch(0)
+        verticalLayout.addStretch()
         verticalLayout.addWidget(label_assign)
         verticalLayout.addWidget(self.btn_assign, 0, QtCore.Qt.AlignHCenter)
 
@@ -124,6 +124,7 @@ class Ui_Form(QtGui.QWidget):
         verticalLayout2.addWidget(label_motorState)
         verticalLayout2.addLayout(horizontalLayout)
         verticalLayout2.addWidget(self.btn_run, 0, QtCore.Qt.AlignHCenter)
+        verticalLayout2.addWidget(self.progress_bar)
         verticalLayout2.addSpacerItem(rowSpacer)
         verticalLayout2.addWidget(label_history)
         verticalLayout2.addWidget(self.command_history)
@@ -131,39 +132,11 @@ class Ui_Form(QtGui.QWidget):
         verticalLayout2.addWidget(label_instructions)
         verticalLayout2.addWidget(label_website)
 
-        self.btn_run.clicked.connect(self.sendMotorData)
+        self.btn_run.clicked.connect(self.collectMotorData)
         self.preset_checkbox.stateChanged.connect(self.updateUI)
         self.btn_assign.clicked.connect(self.assignPosition)
 
-    def assignPosition(self):
-        # Reassign elevator levels if necessary
-        current_level = int(self.comboBox_level.currentText())
-        difference = self.currentPosition - self.level_position[current_level]
-        if difference != 0:        
-            for level in self.level_position.keys():
-                self.level_position[level] += difference
-            self.command_history.appendPlainText("New level positions:")
-        else:
-            self.errorMessage(7)
-            self.command_history.appendPlainText("Current level positions:")
-
-        self.command_history.appendPlainText("Level 1: " + str(self.level_position[1]))
-        self.command_history.appendPlainText("Level 2: " + str(self.level_position[2]))
-        self.command_history.appendPlainText("Level 3: " + str(self.level_position[3]))
-
-    def updateUI(self):
-        # If preset levels are used, disable corresponding manual inputs
-        if self.preset_checkbox.checkState() == 0:
-            self.lineEdit_steps.setEnabled(True)
-            self.comboBox_direction.setEnabled(True)
-            self.btn_assign.setEnabled(False)
-        if self.preset_checkbox.checkState() == 2:
-            self.lineEdit_steps.setEnabled(False)
-            self.comboBox_direction.setEnabled(False)
-            self.btn_assign.setEnabled(True)
-
-    def sendMotorData(self):
-        self.btn_run.setEnabled(False)
+    def collectMotorData(self):
         minHeight, maxHeight = 0, 200000
         speed, speed_valid = QtCore.QString.toFloat(self.lineEdit_speed.text())
         torque = str(self.comboBox_torque.currentText()[0])
@@ -181,34 +154,24 @@ class Ui_Form(QtGui.QWidget):
             else:
                 direction = "Up"
 
-        # Display error message for invalid inputs
         if speed_valid == False or steps_valid == False:
             self.errorMessage(0)
-
-        # Warn user if speed has not been set
         if speed == 0 and speed_valid == True:
             self.errorMessage(1)
-
-        # Do not allow RPMs that exceed the maximum RPM or are less than 0
-        if speed > 134 or speed < 0:
+        if speed > 150 or speed < 0:
             self.errorMessage(2)
             speed = 0
+        speed = int(speed)
 
-        speed = str(int(speed))
-        while len(speed) < 4:
-            speed = "0" + speed
-
-        # Warn user if steps has not been set
         if steps == 0 and steps_valid == True:
             if self.preset_checkbox.checkState() == 0:
                 self.errorMessage(3)
             if self.preset_checkbox.checkState() == 2:
                 self.errorMessage(6)
-
-        # Do not allow negative steps
         if steps < 0:
             self.errorMessage(8)
             steps = 0
+        steps = int(steps)
 
         # Do not step past the top and bottom of the maze
         if direction == "Up" and speed != 0:
@@ -222,38 +185,81 @@ class Ui_Form(QtGui.QWidget):
                 steps = self.currentPosition - minHeight
             self.currentPosition -= int(steps)
 
-        mode = str(self.comboBox_mode.currentText()[2:])
-        while len(mode) < 3:
-            mode = "0" + mode
+        mode = int(self.comboBox_mode.currentText()[2:])
+
+        try:
+            required_time = (steps * mode)/(speed * float(200./60))
+        except:
+            required_time = 0.0
 
         # Using a microstepping mode of 1/2, for example, halves the number of steps
         # Multiply the number of steps by the reciprocal of the mode
         # This will not affect position tracking as it occurs after position tracking
-        steps = str(int(steps)*int(mode))
+        self.steps = int(steps) * mode
+
+        self.sendMotorData(str(speed), str(self.steps), str(mode), torque, direction, required_time)
+        
+    def sendMotorData(self, speed, steps, mode, torque, direction, required_time):
+        self.btn_run.setEnabled(False)
+
+        while len(speed) < 4:
+            speed = "0" + speed
         while len(steps) < 8:
             steps = "0" + steps
+        while len(mode) < 3:
+            mode = "0" + mode
 
         data = 'x'+speed+'x'+steps+'x'+mode+'x'+torque+'x'+direction
-        app.processEvents()
+        self.command_history.appendPlainText(data)
+        self.command_history.appendPlainText("Estimated time required (seconds): " + str(required_time))
 
         try:
             arduino.write(data)
 
-            # Block new inputs until Arduino is ready or after a timeout of thirty seconds has passed, whichever comes first.
-            # The "Run" button accepts mouse events even when disabled. Use processEvents() to ignore these events and prevent
-            # the button from being automatically clicked once enabled.
-            write_timeout = time.time() + 30
-            while 1:
-                if str(arduino.read(23).decode()) == "Ready for next command." or time.time() > write_timeout:
-                    app.processEvents()                    
-                    break
+            # In a separate thread, block new inputs until Arduino is ready
+            if self.steps != 0:
+                self.progress_bar.setRange(0, self.steps)
+                self.motor_progress = update_thread(self.steps)
+                self.motor_progress.start()
+                self.motor_progress.bar_value.connect(self.update_progress)
+            else:
+                self.update_progress(0)
         except:
             self.command_history.appendPlainText("The Arduino is not connected.")
+            self.btn_run.setEnabled(True)
 
-        self.command_history.appendPlainText(data)
         self.command_history.appendPlainText("Current position: " + str(self.currentPosition))
-        app.processEvents()
-        self.btn_run.setEnabled(True)
+        self.command_history.appendPlainText("")
+
+    def assignPosition(self):
+        # Reassign elevator levels if necessary
+        current_level = int(self.comboBox_level.currentText())
+        difference = self.currentPosition - self.level_position[current_level]
+        if difference != 0:        
+            for level in self.level_position.keys():
+                self.level_position[level] += difference
+            self.command_history.appendPlainText("New level positions:")
+        else:
+            self.errorMessage(7)
+            self.command_history.appendPlainText("Current level positions:")
+
+        self.command_history.appendPlainText("Level 1: " + str(self.level_position[1]))
+        self.command_history.appendPlainText("Level 2: " + str(self.level_position[2]))
+        self.command_history.appendPlainText("Level 3: " + str(self.level_position[3]))
+        self.command_history.appendPlainText("")
+
+    def updateUI(self):
+        # If preset levels are used, disable corresponding manual inputs
+        if self.preset_checkbox.checkState() == 0:
+            self.lineEdit_steps.setEnabled(True)
+            self.comboBox_direction.setEnabled(True)
+            self.comboBox_level.setEnabled(False)
+            self.btn_assign.setEnabled(False)
+        if self.preset_checkbox.checkState() == 2:
+            self.lineEdit_steps.setEnabled(False)
+            self.comboBox_direction.setEnabled(False)
+            self.comboBox_level.setEnabled(True)
+            self.btn_assign.setEnabled(True)
 
     def errorMessage(self, num):
         invalid_box = QtGui.QMessageBox()
@@ -288,6 +294,37 @@ class Ui_Form(QtGui.QWidget):
             invalid_box.setInformativeText("<big>The number of steps must be greater than 0.")             
 
         invalid_box.exec_()
+
+    def update_progress(self, num):
+        self.progress_bar.setValue(num)
+        self.btn_run.setText(str(num) + "/" + str(self.steps))
+
+        # Allow new input when motor is done stepping
+        if num == self.steps:
+            self.btn_run.setText("Run")
+            self.btn_run.setEnabled(True)
+            self.progress_bar.reset()
+
+class update_thread(QtCore.QThread):
+    bar_value = QtCore.pyqtSignal(int)
+
+    def __init__(self, steps):
+        super(update_thread, self).__init__()
+        self.steps = steps
+
+    def run(self):
+        # Track steps completed by reading serial port
+        all_entries = []
+        step_entry = []
+        while True:
+            for byte in arduino.read():
+                step_entry.append(byte)
+                if byte == '\n':
+                    all_entries.append(step_entry)
+                    self.bar_value.emit(len(all_entries))
+                    step_entry = []
+            if len(all_entries) == self.steps:
+                break
 
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
