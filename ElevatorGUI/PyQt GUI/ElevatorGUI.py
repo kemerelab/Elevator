@@ -134,7 +134,9 @@ class Ui_Form(QtGui.QWidget):
 
         self.btn_run.clicked.connect(self.collectMotorData)
         self.preset_checkbox.stateChanged.connect(self.updateUI)
+        self.comboBox_level.currentIndexChanged.connect(self.updateUI)
         self.btn_assign.clicked.connect(self.assignPosition)
+        self.btn_assign.clicked.connect(self.updateUI)
 
     def collectMotorData(self):
         minHeight, maxHeight = 0, 200000
@@ -147,12 +149,7 @@ class Ui_Form(QtGui.QWidget):
             direction = str(self.comboBox_direction.currentText())
         if self.preset_checkbox.checkState() == 2:
             steps_valid = True
-            current_level = int(self.comboBox_level.currentText())
-            steps = abs(self.currentPosition - self.level_position[current_level])
-            if self.currentPosition > self.level_position[current_level]:
-                direction = "Down"
-            else:
-                direction = "Up"
+            steps, direction = self.level_calculations()
 
         if speed_valid == False or steps_valid == False:
             self.errorMessage(0)
@@ -231,6 +228,16 @@ class Ui_Form(QtGui.QWidget):
         self.command_history.appendPlainText("Current position: " + str(self.currentPosition))
         self.command_history.appendPlainText("")
 
+    def level_calculations(self):
+        # This method is called in collectMotorData() and updateUI()
+        current_level = int(self.comboBox_level.currentText())
+        steps = abs(self.currentPosition - self.level_position[current_level])
+        if self.currentPosition > self.level_position[current_level]:
+            direction = "Down"
+        else:
+            direction = "Up"
+        return steps, direction
+
     def assignPosition(self):
         # Reassign elevator levels if necessary
         current_level = int(self.comboBox_level.currentText())
@@ -249,15 +256,22 @@ class Ui_Form(QtGui.QWidget):
         self.command_history.appendPlainText("")
 
     def updateUI(self):
+        steps, direction = self.level_calculations()
         # If preset levels are used, disable corresponding manual inputs
         if self.preset_checkbox.checkState() == 0:
             self.lineEdit_steps.setEnabled(True)
+            self.lineEdit_steps.setText("0")
             self.comboBox_direction.setEnabled(True)
             self.comboBox_level.setEnabled(False)
             self.btn_assign.setEnabled(False)
         if self.preset_checkbox.checkState() == 2:
             self.lineEdit_steps.setEnabled(False)
+            self.lineEdit_steps.setText(str(steps))
             self.comboBox_direction.setEnabled(False)
+            if direction == "Up":
+                self.comboBox_direction.setCurrentIndex(0)
+            else:
+                self.comboBox_direction.setCurrentIndex(1)
             self.comboBox_level.setEnabled(True)
             self.btn_assign.setEnabled(True)
 
@@ -316,15 +330,13 @@ class update_thread(QtCore.QThread):
         # Track steps completed by reading serial port
         all_entries = []
         step_entry = []
-        while True:
+        while len(all_entries) <= self.steps:
             for byte in arduino.read():
                 step_entry.append(byte)
                 if byte == '\n':
                     all_entries.append(step_entry)
                     self.bar_value.emit(len(all_entries))
                     step_entry = []
-            if len(all_entries) == self.steps:
-                break
 
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
