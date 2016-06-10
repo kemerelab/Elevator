@@ -318,6 +318,8 @@ class Ui_Form(QtGui.QWidget):
             self.btn_run.setText("Run")
             self.btn_run.setEnabled(True)
             self.progress_bar.reset()
+            if self.preset_checkbox.checkState() == 2:
+                self.updateUI()
 
 class update_thread(QtCore.QThread):
     bar_value = QtCore.pyqtSignal(int)
@@ -330,7 +332,7 @@ class update_thread(QtCore.QThread):
         # Track steps completed by reading serial port
         all_entries = []
         step_entry = []
-        while len(all_entries) <= self.steps:
+        while len(all_entries) < self.steps:
             for byte in arduino.read():
                 step_entry.append(byte)
                 if byte == '\n':
