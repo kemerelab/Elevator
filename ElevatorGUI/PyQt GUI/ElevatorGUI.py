@@ -5,10 +5,29 @@
 import sys
 import RNELBanner_rc
 from PyQt4 import QtCore, QtGui
+from PyQt4.QtGui import QPalette
 from serial import *
+#imports for multithreading
+import threading
+
+import multiprocessing
+
+import socket
+import os
+import signal
+import RPi.GPIO as GPIO
+##### imports for picamera
+from picamera.array import PiRGBArray
+from picamera import PiCamera
+import time
+import cv2
+import numpy as np
+from scipy.misc import imresize
+##### end
+
 
 try:
-    arduino = Serial('/dev/cu.usbmodem1411', 115200)
+    arduino = Serial('/dev/ttyACM0', 115200)
 except:
     pass
 
@@ -18,8 +37,16 @@ class Ui_Form(QtGui.QWidget):
         self.currentPosition = 0
         self.level_position = {1:0, 2:1000, 3:2000}
         self.setupUi()
+	
 
     def setupUi(self):
+
+
+        #self.threadclass = level()
+        #self.threadclass.start()
+      
+        #self.connect(self, QtCore.SIGNAL('LEVEL'), self.threadclass) 
+
         self.setWindowTitle("RNEL Elevator Controller")
         rowSpacer = QtGui.QSpacerItem(1, 20)
         columnSpacer = QtGui.QSpacerItem(50, 1)
@@ -42,6 +69,31 @@ class Ui_Form(QtGui.QWidget):
         label_direction = QtGui.QLabel("Direction:")
         label_mode = QtGui.QLabel("Mode:")
         label_torque = QtGui.QLabel("Torque:")
+		
+        label_percentPixels = QtGui.QLabel("Percent Pixel Difference: ") #LOOK HERE	
+        label_percentPixels.setFont(font)
+
+        self.percentPixels = QtGui.QLCDNumber(self) #LOOK HERE 
+        self.percentPixels.setFont(font)
+        palette = QPalette()
+       # palette.setBrush(QtGui.QPalette.Light, QtCore.Qt.black)
+        brush = QtGui.QBrush(QtGui.QColor(0,0,0))
+        brush.setStyle(QtCore.Qt.SolidPattern)
+        palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.Dark, brush)
+        self.percentPixels.setPalette(palette)
+
+       
+        
+        self.threadclass = receiving()
+        self.threadclass.start()
+		
+        self.connect(self.threadclass, QtCore.SIGNAL('PERCENTDIF'), self.updatePercentPixelLCD)
+
+        
+        
+        self.percentPixels.display(0) # just so something is there
+                
+
         self.lineEdit_speed = QtGui.QLineEdit()
         self.lineEdit_speed.setMaximumSize(QtCore.QSize(100, 30))
         self.lineEdit_speed.setText("0")
@@ -56,6 +108,8 @@ class Ui_Form(QtGui.QWidget):
         self.comboBox_torque.addItems(["10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%"])
         self.comboBox_torque.setCurrentIndex(4)
 
+        
+
         self.preset_checkbox = QtGui.QCheckBox("Use preset elevator levels")
         self.preset_checkbox.setCheckState(False)
         self.preset_checkbox.setTristate(False)
@@ -63,6 +117,12 @@ class Ui_Form(QtGui.QWidget):
         self.comboBox_level = QtGui.QComboBox()
         self.comboBox_level.addItems(["1", "2", "3"])
         self.comboBox_level.setEnabled(False)
+
+       
+       
+
+
+
         label_assign = QtGui.QLabel("Assign position to level?")
         self.btn_assign = QtGui.QPushButton("Assign")
         self.btn_assign.setEnabled(False)
@@ -98,11 +158,15 @@ class Ui_Form(QtGui.QWidget):
         formLayout.addRow(label_direction, self.comboBox_direction)
         formLayout.addRow(label_mode, self.comboBox_mode)
         formLayout.addRow(label_torque, self.comboBox_torque)
+		
+       
 
         formLayout2 = QtGui.QFormLayout()
         formLayout2.setFieldGrowthPolicy(QtGui.QFormLayout.AllNonFixedFieldsGrow)
         formLayout2.setLabelAlignment(QtCore.Qt.AlignLeft)
         formLayout2.addRow(label_level, self.comboBox_level)
+
+        formLayout2.addRow(label_percentPixels, self.percentPixels) #LOOK HERE
 
         verticalLayout = QtGui.QVBoxLayout()
         verticalLayout.addWidget(self.preset_checkbox)
@@ -126,17 +190,31 @@ class Ui_Form(QtGui.QWidget):
         verticalLayout2.addWidget(self.btn_run, 0, QtCore.Qt.AlignHCenter)
         verticalLayout2.addWidget(self.progress_bar)
         verticalLayout2.addSpacerItem(rowSpacer)
+        formLayout3 = QtGui.QFormLayout()
+        verticalLayout2.addLayout(formLayout3)
+
+
+        formLayout3.addRow(label_percentPixels, self.percentPixels) #LOOK HERE
+     
         verticalLayout2.addWidget(label_history)
         verticalLayout2.addWidget(self.command_history)
         verticalLayout2.addSpacerItem(rowSpacer)
         verticalLayout2.addWidget(label_instructions)
         verticalLayout2.addWidget(label_website)
 
+
+
         self.btn_run.clicked.connect(self.collectMotorData)
         self.preset_checkbox.stateChanged.connect(self.updateUI)
         self.comboBox_level.currentIndexChanged.connect(self.updateUI)
         self.btn_assign.clicked.connect(self.assignPosition)
         self.btn_assign.clicked.connect(self.updateUI)
+
+
+    def updatePercentPixelLCD(self, val):
+        self.percentPixels.display(val)
+
+
 
     def collectMotorData(self):
         minHeight, maxHeight = 0, 200000
@@ -156,7 +234,7 @@ class Ui_Form(QtGui.QWidget):
         if speed == 0 and speed_valid == True:
             self.errorMessage(1)
         if speed > 150 or speed < 0:
-            self.errorMessage(2)
+            self.errorMessagself.level_positione(2)
             speed = 0
         speed = int(speed)
 
@@ -201,7 +279,7 @@ class Ui_Form(QtGui.QWidget):
 
         while len(speed) < 4:
             speed = "0" + speed
-        while len(steps) < 8:
+        while len(steps) < self.level_position:
             steps = "0" + steps
         while len(mode) < 3:
             mode = "0" + mode
@@ -224,13 +302,16 @@ class Ui_Form(QtGui.QWidget):
         except:
             self.command_history.appendPlainText("The Arduino is not connected.")
             self.btn_run.setEnabled(True)
-
+		#### I think hall effect sensor reading should go here
         self.command_history.appendPlainText("Current position: " + str(self.currentPosition))
         self.command_history.appendPlainText("")
+		
 
     def level_calculations(self):
         # This method is called in collectMotorData() and updateUI()
         current_level = int(self.comboBox_level.currentText())
+        #self.emit(QtCore.SIGNAL('LEVEL'), current_level)
+		
         steps = abs(self.currentPosition - self.level_position[current_level])
         if self.currentPosition > self.level_position[current_level]:
             direction = "Down"
@@ -321,6 +402,7 @@ class Ui_Form(QtGui.QWidget):
             if self.preset_checkbox.checkState() == 2:
                 self.updateUI()
 
+
 class update_thread(QtCore.QThread):
     bar_value = QtCore.pyqtSignal(int)
 
@@ -340,9 +422,100 @@ class update_thread(QtCore.QThread):
                     self.bar_value.emit(len(all_entries))
                     step_entry = []
 
+class level(QtCore.QThread): #shows what level we are on and will run the reward wells
+	
+	def run (self):
+		
+		GPIO.setwarnings(False)
+		GPIO.setmode(GPIO.BCM)
+		checker1 = 1
+		checker2 = 0
+		trigger1 = 26
+		pump1 = 13
+		trigger2 = 21
+		pump2 = 16
+
+		GPIO.setup(pump1, GPIO.OUT)
+		GPIO.setup(trigger1, GPIO.IN)
+		GPIO.setup(pump2, GPIO.OUT)
+		GPIO.setup(trigger2, GPIO.IN)
+
+		#for outputs, 0 enables pump and 1 turns it off 
+
+		while True:
+			if GPIO.input(trigger1) == True and checker1 == 1: 
+				GPIO.output(pump1, 0)
+				print "triggering reward! :)"
+				time.sleep(5)
+				GPIO.output(pump1,1)
+				checker1 = 0
+				checker2 = 1
+			else:
+				GPIO.output(pump2,1)
+			if GPIO.input(trigger2) == True and checker2 == 1: 
+				GPIO.output(pump2, 0)
+				print "triggering reward again! :)"
+				time.sleep(5)
+				GPIO.output(pump2,1)
+				checker2 = 0
+				checker1 = 1
+			else:
+				GPIO.output(pump1,1)
+
+
+
+class receiving(QtCore.QThread):
+	def run(self):
+		UDP_IPr = "127.0.0.1"
+		UDP_PORTr = 5005
+		
+		sockr = socket.socket(socket.AF_INET, # Internet
+		                     socket.SOCK_DGRAM) # UDP
+		sockr.bind((UDP_IPr, UDP_PORTr))
+		while True:
+			data, addr = sockr.recvfrom(1024) # buffer size is 1024 bytes
+			data = float (data)
+			self.emit(QtCore.SIGNAL('PERCENTDIF'), data)
+
+
+
+def callPiCamDisplay():
+	os.system('python PiCamDisplay.py')
+
+def callRewardWell1():
+	os.system('python RewardWellLevel1.py')
+
+def callRewardWell2():
+	os.system('python RewardWellLevel2.py')
+
+def callRewardWell3():
+	os.system('python RewardWellLevel3.py')
+
+#def callRewardWell():
+	#os.system('python RewardWell.py')
+
 if __name__ == '__main__':
-    app = QtGui.QApplication(sys.argv)
-    ex = Ui_Form()
-    ex.show()
-    ex.raise_()
-    sys.exit(app.exec_())
+
+	p = multiprocessing.Process(target = callPiCamDisplay)
+	p.start()
+	#time.sleep(5)
+	#os.kill(p.pid, signal.SIGKILL)
+	q = multiprocessing.Process(target = callRewardWell1)
+	q.start()
+
+	w = multiprocessing.Process(target = callRewardWell2)
+	w.start()
+
+	e = multiprocessing.Process(target = callRewardWell3)
+	e.start()
+
+	app = QtGui.QApplication(sys.argv)
+	ex = Ui_Form()
+	ex.show()
+
+	ex.raise_()
+
+	sys.exit(app.exec_())
+
+	
+
