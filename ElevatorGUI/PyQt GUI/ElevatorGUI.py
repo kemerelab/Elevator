@@ -279,7 +279,10 @@ class Ui_Form(QtGui.QWidget):
 
         while len(speed) < 4:
             speed = "0" + speed
-        while len(steps) < self.level_position:
+        print(speed)
+        print(self.level_position)
+
+        while len(steps) < 8:
             steps = "0" + steps
         while len(mode) < 3:
             mode = "0" + mode
@@ -479,8 +482,8 @@ class receiving(QtCore.QThread):
 
 
 
-def callPiCamDisplay():
-	os.system('python PiCamDisplay.py')
+#def callPiCamDisplay():
+#	os.system('python PiCamDisplay.py')
 
 def callRewardWell1():
 	os.system('python RewardWellLevel1.py')
