@@ -2,6 +2,10 @@
 # http://pyqt.sourceforge.net/Docs/PyQt4/classes.html
 # Written for AMIS-30543 driver.
 
+'''
+At an RPM of 60 and an input of 200 steps in mode 1/1, takes motor 1 second to complete task
+At an RPM of 120 and an input of 200 steps in mode 1/2, takes motor 1 second to complete task
+'''
 import sys
 import RNELBanner_rc
 from PyQt4 import QtCore, QtGui
@@ -27,7 +31,12 @@ from scipy.misc import imresize
 
 
 try:
-    arduino = Serial('/dev/ttyACM0', 115200)
+    arduino = Serial('/dev/ttyACM0', 115200, timeout = 0.5)
+except:
+    pass
+
+try:
+    arduinoservodoor = Serial('/dev/ttyACM1', 9600)
 except:
     pass
 
@@ -234,18 +243,20 @@ class Ui_Form(QtGui.QWidget):
         if speed == 0 and speed_valid == True:
             self.errorMessage(1)
         if speed > 150 or speed < 0:
-            self.errorMessagself.level_positione(2)
+            self.errorMessage(2)
+            #self.level_position(2)
             speed = 0
-        speed = int(speed)
-
-        if steps == 0 and steps_valid == True:
-            if self.preset_checkbox.checkState() == 0:
-                self.errorMessage(3)
-            if self.preset_checkbox.checkState() == 2:
-                self.errorMessage(6)
-        if steps < 0:
-            self.errorMessage(8)
             steps = 0
+        speed = int(speed)
+        if(speed != 0):
+            if steps == 0 and steps_valid == True:
+                if self.preset_checkbox.checkState() == 0:
+                    self.errorMessage(3)
+                if self.preset_checkbox.checkState() == 2:
+                    self.errorMessage(6)
+            if steps < 0:
+                self.errorMessage(8)
+                steps = 0
         steps = int(steps)
 
         # Do not step past the top and bottom of the maze
@@ -261,7 +272,8 @@ class Ui_Form(QtGui.QWidget):
             self.currentPosition -= int(steps)
 
         mode = int(self.comboBox_mode.currentText()[2:])
-
+        
+        speed = int(speed) * mode
         try:
             required_time = (steps * mode)/(speed * float(200./60))
         except:
@@ -271,7 +283,7 @@ class Ui_Form(QtGui.QWidget):
         # Multiply the number of steps by the reciprocal of the mode
         # This will not affect position tracking as it occurs after position tracking
         self.steps = int(steps) * mode
-
+        #print (mode)
         self.sendMotorData(str(speed), str(self.steps), str(mode), torque, direction, required_time)
         
     def sendMotorData(self, speed, steps, mode, torque, direction, required_time):
@@ -279,8 +291,6 @@ class Ui_Form(QtGui.QWidget):
 
         while len(speed) < 4:
             speed = "0" + speed
-        print(speed)
-        print(self.level_position)
 
         while len(steps) < 8:
             steps = "0" + steps
@@ -290,6 +300,11 @@ class Ui_Form(QtGui.QWidget):
         data = 'x'+speed+'x'+steps+'x'+mode+'x'+torque+'x'+direction
         self.command_history.appendPlainText(data)
         self.command_history.appendPlainText("Estimated time required (seconds): " + str(required_time))
+        
+        try:
+            arduinoservodoor.write(90)
+        except:
+            pass
 
         try:
             arduino.write(data)
@@ -371,7 +386,7 @@ class Ui_Form(QtGui.QWidget):
             invalid_box.setInformativeText("<big>Please set a speed to start the motor.")
         if num == 2:
             invalid_box.setText("<br>The speed cannot be set.")
-            invalid_box.setInformativeText("<big>The speed must be greater than 0 but less than the maximum RPM of 150.")           
+            invalid_box.setInformativeText("<big>The speed must be greater than 0 but less than the maximum RPM of 150. The steps have been set to 0. Please try again at a lower speed.")           
         if num == 3:
             invalid_box.setText("<br>The distance has not been set.")
             invalid_box.setInformativeText("<big>Please set a distance to start the motor.") 
@@ -414,16 +429,35 @@ class update_thread(QtCore.QThread):
         self.steps = steps
 
     def run(self):
-        # Track steps completed by reading serial port
+        # Track steps completed by reading serial port       
         all_entries = []
         step_entry = []
+        lencount = len(all_entries)
+        count = 0
         while len(all_entries) < self.steps:
-            for byte in arduino.read():
+            if lencount == len(all_entries):
+                count += 1
+                if count > 5:
+                    self.bar_value.emit(self.steps)
+                    break
+            lencount = len(all_entries)
+            for byte in arduino.read():                
+                count = 0                
+                #print (byte)
                 step_entry.append(byte)
+                #print (step_entry)
+                
+                #length of previous all_entries
+                #compare to current length
+                #if value is same increment counter
+                #update lencount               
                 if byte == '\n':
                     all_entries.append(step_entry)
+                    #print(all_entries)
                     self.bar_value.emit(len(all_entries))
                     step_entry = []
+            #print (len(all_entries),"moo", count)
+            
 
 class level(QtCore.QThread): #shows what level we are on and will run the reward wells
 	
@@ -482,8 +516,8 @@ class receiving(QtCore.QThread):
 
 
 
-#def callPiCamDisplay():
-#	os.system('python PiCamDisplay.py')
+def callPiCamDisplay():
+	os.system('python PiCamDisplay.py')
 
 def callRewardWell1():
 	os.system('python RewardWellLevel1.py')
