@@ -12,7 +12,7 @@ from PyQt4 import QtCore, QtGui
 from PyQt4.QtGui import QPalette
 from serial import *
 #imports for multithreading
-import threading
+from threading import Thread, Event
 
 import multiprocessing
 
@@ -27,8 +27,14 @@ import time
 import cv2
 import numpy as np
 from scipy.misc import imresize
+
+import globalvars
+
+import Queue
 ##### end
 
+#global doorclose
+#doorclose = True
 
 try:
     arduino = Serial('/dev/ttyACM0', 115200, timeout = 0.5)
@@ -40,11 +46,14 @@ try:
 except:
     pass
 
+#doorclose = True
+
 class Ui_Form(QtGui.QWidget):
     def __init__(self):
         super(Ui_Form, self).__init__()
         self.currentPosition = 0
         self.level_position = {1:0, 2:1000, 3:2000}
+#        self.doorclose = True
         self.setupUi()
 	
 
@@ -138,6 +147,7 @@ class Ui_Form(QtGui.QWidget):
 
         self.btn_run = QtGui.QPushButton("Run")
         self.progress_bar = QtGui.QProgressBar()
+        self.btn_doorstat = QtGui.QPushButton("Open/Close")
 
         label_history = QtGui.QLabel("Command History")
         label_history.setFont(font)
@@ -197,6 +207,7 @@ class Ui_Form(QtGui.QWidget):
         verticalLayout2.addWidget(label_motorState)
         verticalLayout2.addLayout(horizontalLayout)
         verticalLayout2.addWidget(self.btn_run, 0, QtCore.Qt.AlignHCenter)
+        verticalLayout2.addWidget(self.btn_doorstat, 0, QtCore.Qt.AlignRight)
         verticalLayout2.addWidget(self.progress_bar)
         verticalLayout2.addSpacerItem(rowSpacer)
         formLayout3 = QtGui.QFormLayout()
@@ -214,6 +225,7 @@ class Ui_Form(QtGui.QWidget):
 
 
         self.btn_run.clicked.connect(self.collectMotorData)
+        self.btn_doorstat.clicked.connect(self.sendServoData)
         self.preset_checkbox.stateChanged.connect(self.updateUI)
         self.comboBox_level.currentIndexChanged.connect(self.updateUI)
         self.btn_assign.clicked.connect(self.assignPosition)
@@ -300,11 +312,8 @@ class Ui_Form(QtGui.QWidget):
         data = 'x'+speed+'x'+steps+'x'+mode+'x'+torque+'x'+direction
         self.command_history.appendPlainText(data)
         self.command_history.appendPlainText("Estimated time required (seconds): " + str(required_time))
-        
-        try:
-            arduinoservodoor.write(90)
-        except:
-            pass
+
+        # self.sendServoData()
 
         try:
             arduino.write(data)
@@ -323,7 +332,20 @@ class Ui_Form(QtGui.QWidget):
 		#### I think hall effect sensor reading should go here
         self.command_history.appendPlainText("Current position: " + str(self.currentPosition))
         self.command_history.appendPlainText("")
-		
+	
+    def sendServoData(self):
+        if globalvars.doorclose:
+            try:
+                arduinoservodoor.write("90")
+                globalvars.doorclose = not globalvars.doorclose
+            except:
+                self.command_history.appendPlainText("Error writing to servo arduino\n")
+        else:	
+            try:
+                arduinoservodoor.write("0")
+                globalvars.doorclose = not globalvars.doorclose
+            except:
+                self.command_history.appendPlainText("Error writing to servo arduino\n")
 
     def level_calculations(self):
         # This method is called in collectMotorData() and updateUI()
@@ -427,7 +449,7 @@ class update_thread(QtCore.QThread):
     def __init__(self, steps):
         super(update_thread, self).__init__()
         self.steps = steps
-
+    
     def run(self):
         # Track steps completed by reading serial port       
         all_entries = []
@@ -514,45 +536,237 @@ class receiving(QtCore.QThread):
 			data = float (data)
 			self.emit(QtCore.SIGNAL('PERCENTDIF'), data)
 
-
+#def collectServoData(self, q):
+#    doorclose = self.doorclose
+#    q.put(doorclose)    
 
 def callPiCamDisplay():
 	os.system('python PiCamDisplay.py')
 
-def callRewardWell1():
-	os.system('python RewardWellLevel1.py')
+#def callRewardWell1():
+#	os.system('python RewardWellLevel1.py')
 
-def callRewardWell2():
-	os.system('python RewardWellLevel2.py')
+#def callRewardWell2():
+#	os.system('python RewardWellLevel2.py')
 
-def callRewardWell3():
-	os.system('python RewardWellLevel3.py')
+#def callRewardWell3():
+#	os.system('python RewardWellLevel3.py')
 
 #def callRewardWell():
 	#os.system('python RewardWell.py')
 
+def callRewardWells():
+    HIGH = 0
+    LOW = 1
+
+#    doorclose = Event()
+#    if not obj:
+#        doorclose.set()
+#    elif obj:
+#        doorclose.clear()
+
+#    print obj
+#    print doorclose
+    
+    GPIO.setwarnings(False)
+    GPIO.setmode(GPIO.BCM)
+    wellnum = 0
+    checker1 = 1
+    checker2 = 1
+    checker3 = 1
+    checker4 = 1
+    checker5 = 1
+    checker6 = 1
+    trigger1 = 15
+    pump1 = 17
+    trigger2 = 18
+    pump2 = 22
+    trigger3 = 23#might cause an error, 4 or 04
+    pump3 = 10 #might cause an error, 2 or 02
+    trigger4 = 24
+    pump4 = 11
+    trigger5 = 25
+    pump5 = 13 	
+    trigger6 = 8
+    pump6 = 26
+
+    GPIO.setup(pump1, GPIO.OUT)
+    GPIO.setup(trigger1, GPIO.IN)
+    GPIO.setup(pump2, GPIO.OUT)
+    GPIO.setup(trigger2, GPIO.IN)
+    GPIO.setup(pump3, GPIO.OUT)
+    GPIO.setup(trigger3, GPIO.IN)
+    GPIO.setup(pump4, GPIO.OUT)
+    GPIO.setup(trigger4, GPIO.IN)
+    GPIO.setup(pump5, GPIO.OUT)
+    GPIO.setup(trigger5, GPIO.IN)
+    GPIO.setup(pump6, GPIO.OUT)
+    GPIO.setup(trigger6, GPIO.IN)
+
+    #for outputs, 0 enables pump and 1 turns it off 
+
+    GPIO.output(pump1, LOW)
+    GPIO.output(pump2, LOW)
+    GPIO.output(pump3, LOW)
+    GPIO.output(pump4, LOW)
+    GPIO.output(pump5, LOW)
+    GPIO.output(pump6, LOW)
+    
+
+    while True:
+        #print obj
+        if globalvars.doorclose:
+
+#            doorclose.set()
+
+            if wellnum == 1:
+                checker2 = 1
+                wellnum = 0
+                #print checker2
+            elif wellnum == 2:
+                checker1 = 1
+                wellnum = 0
+                #print checker1
+            elif wellnum == 3:
+                checker4 = 1
+                wellnum = 0
+                #print checker4
+            elif wellnum == 4:
+                checker3 = 1
+                wellnum = 0
+                #print checker3
+            elif wellnum == 5:
+                checker6 = 1
+                wellnum = 0
+                #print checker6
+            elif wellnum == 6:
+                checker5 = 1
+                wellnum = 0
+                #print checker5
+        
+        elif not globalvars.doorclose and wellnum == 0:
+
+#            doorclose.clear()
+            if GPIO.input(trigger1) == True and checker1 == 1: 
+                GPIO.output(pump1, HIGH)
+                print "triggering reward! :)      1"
+                checker2 = 0	    
+                time.sleep(1)
+                GPIO.output(pump1, LOW)
+                checker1 = 0
+                wellnum = 1
+    #            print checker2
+#                doorclose.wait()
+                checker2 = 1
+                print checker2
+                
+            elif GPIO.input(trigger2) == True and checker2 == 1: 
+                GPIO.output(pump2, HIGH)
+                print "triggering reward! :)     2"
+                checker1 = 0        
+                time.sleep(1)
+                GPIO.output(pump2, LOW)
+                checker2 = 0
+                wellnum = 2
+    #            print checker1
+                print wellnum
+    #            doorclose.wait()
+    #            checker1 = 1
+    #            print checker1
+            
+            elif GPIO.input(trigger3) == True and checker1 == 3: 
+                GPIO.output(pump3, HIGH)
+                print "triggering reward! :)      3"
+                checker4 = 0	    
+                time.sleep(1)
+                GPIO.output(pump3, LOW)
+                checker3 = 0
+                wellnum = 3
+                print wellnum
+    #            print checker4
+    #            doorclose.wait()
+    #            checker4 = 1
+    #            print checker4
+                
+            elif GPIO.input(trigger4) == True and checker4 == 1: 
+                GPIO.output(pump4, HIGH)
+                print "triggering reward! :)     4"
+                checker3 = 0        
+                time.sleep(1)
+                GPIO.output(pump4, LOW)
+                checker4 = 0
+                wellnum = 4
+    #            print checker3
+#                doorclose.wait()
+                checker3 = 1
+                print checker3
+                
+            elif GPIO.input(trigger5) == True and checker5 == 1: 
+                GPIO.output(pump5, HIGH)
+                print "triggering reward! :)      5"
+                checker6 = 0	    
+                time.sleep(1)
+                GPIO.output(pump5, LOW)
+                checker5 = 0
+                wellnum = 5
+    #            print checker6
+#                doorclose.wait()
+                checker6 = 1
+                print checker6
+                
+            elif GPIO.input(trigger6) == True and checker6 == 1: 
+                GPIO.output(pump6, HIGH)
+                print "triggering reward! :)     6"
+                checker5 = 0        
+                time.sleep(1)
+                GPIO.output(pump6, LOW)
+                checker6 = 0
+                wellnum = 6
+    #            print checker5
+#                doorclose.wait()
+                checker5 = 1
+                print checker5
+                
+           
+
 if __name__ == '__main__':
 
-	p = multiprocessing.Process(target = callPiCamDisplay)
-	p.start()
+#    p = multiprocessing.Process(target = callPiCamDisplay)
+#    p.start()
 	#time.sleep(5)
 	#os.kill(p.pid, signal.SIGKILL)
-	q = multiprocessing.Process(target = callRewardWell1)
-	q.start()
+#	q = multiprocessing.Process(target = callRewardWell1)
+#	q.start()
 
-	w = multiprocessing.Process(target = callRewardWell2)
-	w.start()
+#	w = multiprocessing.Process(target = callRewardWell2)
+#	w.start()
 
-	e = multiprocessing.Process(target = callRewardWell3)
-	e.start()
+#	e = multiprocessing.Process(target = callRewardWell3)
+#	e.start()
+    #global doorclose
+    globalvars.doorclose = True
+   
+    print globalvars.doorclose in globals()
+    print "It's okay if it's false b/c you have import access to it"
+        
+    app = QtGui.QApplication(sys.argv)
+    ex = Ui_Form()
+    ex.show()
+    
+    ex.raise_()
+    
+#    q = Queue.Queue()
+    
+#    t1 = Thread(target = collectServoData, args = (ex.doorclose))
+    t2 = Thread(target = callRewardWells, args = ())
+#    t1.start()
+    t2.start()
 
-	app = QtGui.QApplication(sys.argv)
-	ex = Ui_Form()
-	ex.show()
 
-	ex.raise_()
+#    ex.raise_()
 
-	sys.exit(app.exec_())
-
+    sys.exit(app.exec_())
+#    t1.join()
+    t2.join()
 	
 
