@@ -17,8 +17,10 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 //B
 #define SERVOBMIN  171
 #define SERVOBMAX  558
-#define SERVOB_0 247
-#define SERVOB_90 475
+#define SERVOB_0 235
+//12 or 13 currently
+#define SERVOB_90 440
+//95
 //C
 #define SERVOCMIN  169
 #define SERVOCMAX  553
@@ -57,8 +59,8 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 //J
 #define SERVOJMIN  170
 #define SERVOJMAX  557
-#define SERVOJ_0 251
-#define SERVOJ_90 475
+#define SERVOJ_0 240
+#define SERVOJ_90 447
 //K
 #define SERVOKMIN  170
 #define SERVOKMAX  556
@@ -152,7 +154,7 @@ void loop() {
     pulselenA = map(input_degree, 0, 90, SERVOA_0, SERVOA_90);
     pwm.setPWM(0, 0, pulselenA);
     */
-    pulselenB = map(input_degree, 0, 90, SERVOB_0, SERVOB_90);
+    pulselenB = map(90 - input_degree, 0, 90, SERVOB_0, SERVOB_90);
     pwm.setPWM(1, 0, pulselenB);
 
     /*

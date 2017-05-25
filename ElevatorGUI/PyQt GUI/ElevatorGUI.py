@@ -615,6 +615,7 @@ def callRewardWells():
 
     while True:
         #print obj
+        time.sleep(1)
         if globalvars.doorclose:
 
 #            doorclose.set()
@@ -731,8 +732,8 @@ def callRewardWells():
 
 if __name__ == '__main__':
 
-#    p = multiprocessing.Process(target = callPiCamDisplay)
-#    p.start()
+    p = multiprocessing.Process(target = callPiCamDisplay)
+    p.start()
 	#time.sleep(5)
 	#os.kill(p.pid, signal.SIGKILL)
 #	q = multiprocessing.Process(target = callRewardWell1)
@@ -746,8 +747,8 @@ if __name__ == '__main__':
     #global doorclose
     globalvars.doorclose = True
    
-    print globalvars.doorclose in globals()
-    print "It's okay if it's false b/c you have import access to it"
+    #print globalvars.doorclose in globals()
+    #print "It's okay if it's false b/c you have import access to it"
         
     app = QtGui.QApplication(sys.argv)
     ex = Ui_Form()
