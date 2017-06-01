@@ -338,12 +338,14 @@ class Ui_Form(QtGui.QWidget):
             try:
                 arduinoservodoor.write("90")
                 globalvars.doorclose = not globalvars.doorclose
+                print globalvars.doorclose
             except:
                 self.command_history.appendPlainText("Error writing to servo arduino\n")
         else:	
             try:
-                arduinoservodoor.write("0")
+                arduinoservodoor.write("-1")
                 globalvars.doorclose = not globalvars.doorclose
+                print globalvars.doorclose
             except:
                 self.command_history.appendPlainText("Error writing to servo arduino\n")
 
@@ -615,7 +617,7 @@ def callRewardWells():
 
     while True:
         #print obj
-        time.sleep(1)
+        time.sleep(0.05)
         if globalvars.doorclose:
 
 #            doorclose.set()
@@ -648,7 +650,11 @@ def callRewardWells():
         elif not globalvars.doorclose and wellnum == 0:
 
 #            doorclose.clear()
-            if GPIO.input(trigger1) == True and checker1 == 1: 
+            trig1input = GPIO.input(trigger1)
+            #print(trig1input)
+            trig2input = GPIO.input(trigger2)
+            #print(trig2input)
+            if trig1input == True and checker1 == 1: 
                 GPIO.output(pump1, HIGH)
                 print "triggering reward! :)      1"
                 checker2 = 0	    
@@ -661,7 +667,8 @@ def callRewardWells():
                 checker2 = 1
                 print checker2
                 
-            elif GPIO.input(trigger2) == True and checker2 == 1: 
+            
+            elif trig2input == True and checker2 == 1: 
                 GPIO.output(pump2, HIGH)
                 print "triggering reward! :)     2"
                 checker1 = 0        
@@ -672,7 +679,7 @@ def callRewardWells():
     #            print checker1
                 print wellnum
     #            doorclose.wait()
-    #            checker1 = 1
+                checker1 = 1
     #            print checker1
             
             elif GPIO.input(trigger3) == True and checker1 == 3: 
@@ -686,7 +693,7 @@ def callRewardWells():
                 print wellnum
     #            print checker4
     #            doorclose.wait()
-    #            checker4 = 1
+                checker4 = 1
     #            print checker4
                 
             elif GPIO.input(trigger4) == True and checker4 == 1: 

@@ -112,6 +112,8 @@ uint16_t pulselenN;
 uint16_t pulselenO;
 uint16_t pulselenP;
 
+int state = 90;
+
 void setup() {
   Serial.begin(9600);
   pwm.begin();
@@ -154,8 +156,36 @@ void loop() {
     pulselenA = map(input_degree, 0, 90, SERVOA_0, SERVOA_90);
     pwm.setPWM(0, 0, pulselenA);
     */
-    pulselenB = map(90 - input_degree, 0, 90, SERVOB_0, SERVOB_90);
-    pwm.setPWM(1, 0, pulselenB);
+
+    
+    //*********
+    //Opening and Closing slowly
+    //Closing!
+    int cow = input_degree;
+      while(state > input_degree){
+        pulselenB = map(90 - state, 0, 90, SERVOB_0, SERVOB_90);
+        pulselenJ = map(state, 0, 90, SERVOJ_0, SERVOJ_90);
+        pwm.setPWM(1, 0, pulselenB);
+        pwm.setPWM(9, 0, pulselenJ);
+        delay(25);
+        state -= 1;
+      }
+    //*****
+    //Opening!
+      while(state < input_degree){
+        pulselenB = map(90 - state, 0, 90, SERVOB_0, SERVOB_90);
+        pulselenJ = map(state, 0, 90, SERVOJ_0, SERVOJ_90);
+        pwm.setPWM(1, 0, pulselenB);
+        pwm.setPWM(9, 0, pulselenJ);
+        delay(25);
+        state += 1;
+      }
+
+    //quiet at 71 and 29 degrees
+    
+    //***** ORiginal StuFF
+    //pulselenB = map(90 - input_degree, 0, 90, SERVOB_0, SERVOB_90);
+    //pwm.setPWM(1, 0, pulselenB);
 
     /*
     delay(500);
@@ -186,8 +216,10 @@ void loop() {
     pulselenI = map(input_degree, 0, 90, SERVOI_0, SERVOI_90);
     pwm.setPWM(8, 0, pulselenI);
     */
-    pulselenJ = map(input_degree, 0, 90, SERVOJ_0, SERVOJ_90);
-    pwm.setPWM(9, 0, pulselenJ);
+    
+    //***** ORiginal StuFF
+    //pulselenJ = map(input_degree, 0, 90, SERVOJ_0, SERVOJ_90);
+    //pwm.setPWM(9, 0, pulselenJ);
 
     /*
     delay(500);
