@@ -30,6 +30,8 @@ from scipy.misc import imresize
 
 import globalvars
 
+import struct
+
 import Queue
 ##### end
 
@@ -37,16 +39,26 @@ import Queue
 #doorclose = True
 
 try:
-    arduino = Serial('/dev/ttyACM0', 115200, timeout = 0.5)
+    arduino = Serial('/dev/ttyACM6', 115200, timeout = 0.5)
+    print("successfully connected to orig arduino!")
 except:
     pass
 
 try:
-    arduinoservodoor = Serial('/dev/ttyACM1', 9600)
+    arduinoservodoor = Serial('/dev/ttyACM5', 9600)
+    print("successfully connected to servo arduino!")
 except:
     pass
+    
+try:
+    arduinoCapSense = Serial('/dev/ttyACM7', 115200)
+    print("successfully connected to cap sensor arduino!")
+except:
+    pass    
 
 #doorclose = True
+
+target = open("/home/kemerelab/Desktop/CapSenseData.out", 'w')
 
 class Ui_Form(QtGui.QWidget):
     def __init__(self):
@@ -55,6 +67,13 @@ class Ui_Form(QtGui.QWidget):
         self.level_position = {1:0, 2:1000, 3:2000}
 #        self.doorclose = True
         self.setupUi()
+    
+    
+    def closeEvent(self, event):
+        target.close()
+        t2.join()
+        print "User has clicked the red x on the main window"
+        event.accept()
 	
 
     def setupUi(self):
@@ -102,10 +121,10 @@ class Ui_Form(QtGui.QWidget):
 
        
         
-        self.threadclass = receiving()
-        self.threadclass.start()
+        #self.threadclass = receiving()
+        #self.threadclass.start()
 		
-        self.connect(self.threadclass, QtCore.SIGNAL('PERCENTDIF'), self.updatePercentPixelLCD)
+        #self.connect(self.threadclass, QtCore.SIGNAL('PERCENTDIF'), self.updatePercentPixelLCD)
 
         
         
@@ -340,12 +359,29 @@ class Ui_Form(QtGui.QWidget):
                 globalvars.doorclose = not globalvars.doorclose
                 print globalvars.doorclose
             except:
-                self.command_history.appendPlainText("Error writing to servo arduino\n")
+                self.command_history.appendPlainText("Error reading from servo arduino\n")
         else:	
             try:
                 arduinoservodoor.write("-1")
                 globalvars.doorclose = not globalvars.doorclose
                 print globalvars.doorclose
+                try:
+                    #while True:
+                    arduinoCapSense.flushInput()
+                    capdata = arduinoCapSense.readline()
+                    target.write(capdata)
+                    #target.write("\n")
+                    print capdata
+                        #values = line.decode('ascii').split(':')
+                        #print arduinoCapSense.readline()
+                        #print (values)
+                  #  time.sleep(0.001)
+                    #for byte in arduinoCapSense.read():
+                        #print(ord(byte))
+                        #byte_range = bytearray(b'\x85W\xe2\xa2I')
+                        #date_header = struct.unpack('>BL', byte_range)
+                except:
+                    self.command_history.appendPlainText("Error writing to capacitive sensor arduino\n")
             except:
                 self.command_history.appendPlainText("Error writing to servo arduino\n")
 
@@ -735,12 +771,12 @@ def callRewardWells():
                 checker5 = 1
                 print checker5
                 
-           
+t2 = Thread(target = callRewardWells, args = ())           
 
 if __name__ == '__main__':
 
-    p = multiprocessing.Process(target = callPiCamDisplay)
-    p.start()
+#    p = multiprocessing.Process(target = callPiCamDisplay)
+#    p.start()
 	#time.sleep(5)
 	#os.kill(p.pid, signal.SIGKILL)
 #	q = multiprocessing.Process(target = callRewardWell1)
@@ -766,7 +802,7 @@ if __name__ == '__main__':
 #    q = Queue.Queue()
     
 #    t1 = Thread(target = collectServoData, args = (ex.doorclose))
-    t2 = Thread(target = callRewardWells, args = ())
+    #t2 = Thread(target = callRewardWells, args = ())
 #    t1.start()
     t2.start()
 
@@ -774,7 +810,9 @@ if __name__ == '__main__':
 #    ex.raise_()
 
     sys.exit(app.exec_())
+    #target.close()
+    #print "closed!"
 #    t1.join()
-    t2.join()
+    #t2.join()
 	
 

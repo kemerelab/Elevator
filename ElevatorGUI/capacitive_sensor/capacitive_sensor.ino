@@ -1,6 +1,5 @@
 #include <CapacitiveSensor.h>
 #include <Wire.h> // Include the Arduino SPI library
-
 /*
  * CapitiveSense Library Demo Sketch with s7s output
  * Paul Badger 2008; modified by Etienne Ackermann 2016
@@ -15,6 +14,7 @@ const byte s7sAddress = 0x71;
 
 //unsigned int counter = 9900;  // This variable will count up to 65k
 char tempString[4];  // Will be used with sprintf to create strings
+//int ct;
 
 void setup()                    
 {
@@ -23,19 +23,27 @@ void setup()
    setBrightnessI2C(255);  // High brightness
    delay(1000);
    clearDisplayI2C();
+   //ct = 5;
    cs_4_2.set_CS_AutocaL_Millis(0xFFFFFFFF);     // turn off autocalibrate on channel 1 - just as an example
    Serial.begin(115200);
 }
 
 void loop()                    
 {
+    /*while(ct<5)
+    {
+        ct = 6;
+        Serial.println(ct);
+    }
+    */
     long sensorValue =  cs_4_2.capacitiveSensor(30);
-    Serial.println(sensorValue);                // print sensor output to serial port
+    //ct = 7;
     sprintf(tempString, "%4d", sensorValue);
-
+    //Serial.println(ct);
+    String omgplsworkpleeeaassseee = String(sensorValue);
+    Serial.println(omgplsworkpleeeaassseee);
     // This will output the tempString to the s7s
     s7sSendStringI2C(tempString);
-
     delay(100);                             // arbitrary delay to limit data to serial port 
 }
 
