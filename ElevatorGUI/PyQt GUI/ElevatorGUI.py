@@ -60,6 +60,20 @@ except:
 
 target = open("/home/kemerelab/Desktop/CapSenseData.out", 'w')
 
+class Capacitance(QtCore.QThread):
+#   def __init__(self, threadID, name):
+#      Thread.__init__(self)
+#      self.threadID = threadID
+#      self.name = capacitiveSensorThread
+   
+   def run(self):
+        while globalvars.quitThread == False:
+            arduinoCapSense.flushInput()
+            capdatatotal = arduinoCapSense.readline()
+            target.write(capdatatotal)
+            self.emit(QtCore.SIGNAL('CAP'), capdatatotal)
+            time.sleep(1.5)
+
 class Ui_Form(QtGui.QWidget):
     def __init__(self):
         super(Ui_Form, self).__init__()
@@ -112,25 +126,25 @@ class Ui_Form(QtGui.QWidget):
         label_percentPixels = QtGui.QLabel("Percent Pixel Difference: ") #LOOK HERE	
         label_percentPixels.setFont(font)
 
-        self.percentPixels = QtGui.QLCDNumber(self) #LOOK HERE 
-        self.percentPixels.setFont(font)
+        self.capacitance = QtGui.QLCDNumber(self) #LOOK HERE 
+        self.capacitance.setFont(font)
         palette = QPalette()
        # palette.setBrush(QtGui.QPalette.Light, QtCore.Qt.black)
         brush = QtGui.QBrush(QtGui.QColor(0,0,0))
         brush.setStyle(QtCore.Qt.SolidPattern)
         palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.Dark, brush)
-        self.percentPixels.setPalette(palette)
+        self.capacitance.setPalette(palette)
 
        
         
-        #self.threadclass = receiving()
-        #self.threadclass.start()
+        self.threadclass = Capacitance()
+        self.threadclass.start()
 		
-        #self.connect(self.threadclass, QtCore.SIGNAL('PERCENTDIF'), self.updatePercentPixelLCD)
+        self.connect(self.threadclass, QtCore.SIGNAL('CAP'), self.updateCapacitance)
 
         
         
-        self.percentPixels.display(0) # just so something is there
+        self.capacitance.display(0) # just so something is there
                 
 
         self.lineEdit_speed = QtGui.QLineEdit()
@@ -206,7 +220,7 @@ class Ui_Form(QtGui.QWidget):
         formLayout2.setLabelAlignment(QtCore.Qt.AlignLeft)
         formLayout2.addRow(label_level, self.comboBox_level)
 
-        formLayout2.addRow(label_percentPixels, self.percentPixels) #LOOK HERE
+        formLayout2.addRow(label_capacitance, self.capacitance) #LOOK HERE
 
         verticalLayout = QtGui.QVBoxLayout()
         verticalLayout.addWidget(self.preset_checkbox)
@@ -235,7 +249,7 @@ class Ui_Form(QtGui.QWidget):
         verticalLayout2.addLayout(formLayout3)
 
 
-        formLayout3.addRow(label_percentPixels, self.percentPixels) #LOOK HERE
+        formLayout3.addRow(label_capacitance, self.capacitance) #LOOK HERE
      
         verticalLayout2.addWidget(label_history)
         verticalLayout2.addWidget(self.command_history)
@@ -253,8 +267,8 @@ class Ui_Form(QtGui.QWidget):
         self.btn_assign.clicked.connect(self.updateUI)
 
 
-    def updatePercentPixelLCD(self, val):
-        self.percentPixels.display(val)
+    def updateCapacitance(self, val):
+        self.capacitance.display(val)
 
 
 
@@ -360,6 +374,7 @@ class Ui_Form(QtGui.QWidget):
                 arduinoservodoor.write("91")
                 globalvars.doorclose = not globalvars.doorclose
                 print globalvars.doorclose
+                target.write("door open\n")
             except:
                 self.command_history.appendPlainText("Error reading from servo arduino\n")
         else:	
@@ -376,6 +391,7 @@ class Ui_Form(QtGui.QWidget):
                     arduinoCapSense.flushInput()
                     capdata = arduinoCapSense.readline()
                     target.write(capdata)
+                    target.write("door closed\n")
                     #target.write("\n")
                     print capdata
                         #values = line.decode('ascii').split(':')
@@ -578,7 +594,7 @@ class receiving(QtCore.QThread):
 		while True:
 			data, addr = sockr.recvfrom(1024) # buffer size is 1024 bytes
 			data = float (data)
-			self.emit(QtCore.SIGNAL('PERCENTDIF'), data)
+			self.emit(QtCore.SIGNAL('CAP'), data)
 
 #def collectServoData(self, q):
 #    doorclose = self.doorclose
