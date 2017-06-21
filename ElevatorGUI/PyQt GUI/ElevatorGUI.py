@@ -39,19 +39,19 @@ import Queue
 #doorclose = True
 
 try:
-    arduino = Serial('/dev/ttyACM6', 115200, timeout = 0.5)
+    arduino = Serial('/dev/ttyACM0', 115200, timeout = 0.5)
     print("successfully connected to orig arduino!")
 except:
     pass
 
 try:
-    arduinoservodoor = Serial('/dev/ttyACM5', 9600)
+    arduinoservodoor = Serial('/dev/ttyACM1', 9600)
     print("successfully connected to servo arduino!")
 except:
     pass
     
 try:
-    arduinoCapSense = Serial('/dev/ttyACM7', 115200)
+    arduinoCapSense = Serial('/dev/ttyACM2', 115200)
     print("successfully connected to cap sensor arduino!")
 except:
     pass    
@@ -71,6 +71,8 @@ class Ui_Form(QtGui.QWidget):
     
     def closeEvent(self, event):
         target.close()
+        globalvars.quitThread = True
+        time.sleep(1)
         t2.join()
         print "User has clicked the red x on the main window"
         event.accept()
@@ -355,13 +357,17 @@ class Ui_Form(QtGui.QWidget):
     def sendServoData(self):
         if globalvars.doorclose:
             try:
-                arduinoservodoor.write("90")
+                arduinoservodoor.write("91")
                 globalvars.doorclose = not globalvars.doorclose
                 print globalvars.doorclose
             except:
                 self.command_history.appendPlainText("Error reading from servo arduino\n")
         else:	
             try:
+                arduinoservodoor.write("-5")
+                time.sleep(1.5)
+                arduinoservodoor.write("-3")
+                time.sleep(1.5)
                 arduinoservodoor.write("-1")
                 globalvars.doorclose = not globalvars.doorclose
                 print globalvars.doorclose
@@ -651,7 +657,7 @@ def callRewardWells():
     GPIO.output(pump6, LOW)
     
 
-    while True:
+    while globalvars.quitThread == False:
         #print obj
         time.sleep(0.05)
         if globalvars.doorclose:
