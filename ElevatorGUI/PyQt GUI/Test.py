@@ -60,18 +60,19 @@ except:
 
 target = open("/home/kemerelab/Desktop/CapSenseData.out", 'w')
 
-class Capacitance (threading.Thread):
-   def __init__(self, threadID, name):
-      threading.Thread.__init__(self)
-      self.threadID = threadID
-      self.name = capacitiveSensorThread
+class Capacitance(QtCore.QThread):
+#   def __init__(self, threadID, name):
+#      Thread.__init__(self)
+#      self.threadID = threadID
+#      self.name = capacitiveSensorThread
    
    def run(self):
-       while True:
-           arduinoCapSense.flushInput()
-           capdatatotal = arduinoCapSense.readline()
-           target.write(capdatatotal)
-           time.sleep(1.5)
+        while globalvars.quitThread == False:
+            arduinoCapSense.flushInput()
+            capdatatotal = arduinoCapSense.readline()
+            target.write(capdatatotal)
+            self.emit(QtCore.SIGNAL('CAP'), capdatatotal)
+            time.sleep(1.5)
 
 class Ui_Form(QtGui.QWidget):
     def __init__(self):
@@ -125,7 +126,7 @@ class Ui_Form(QtGui.QWidget):
         label_capacitance = QtGui.QLabel("Capacitance: ") #LOOK HERE	
         label_capacitance.setFont(font)
 
-        self.capacitance = Capacitance.run(self) #LOOK HERE 
+        self.capacitance = QtGui.QLCDNumber(self) #LOOK HERE 
         self.capacitance.setFont(font)
         palette = QPalette()
        # palette.setBrush(QtGui.QPalette.Light, QtCore.Qt.black)
@@ -136,10 +137,10 @@ class Ui_Form(QtGui.QWidget):
 
        
         
-        #self.threadclass = receiving()
-        #self.threadclass.start()
+        self.threadclass = Capacitance()
+        self.threadclass.start()
 		
-        #self.connect(self.threadclass, QtCore.SIGNAL('PERCENTDIF'), self.updatePercentPixelLCD)
+        self.connect(self.threadclass, QtCore.SIGNAL('CAP'), self.updateCapacitance)
 
         
         
@@ -373,6 +374,7 @@ class Ui_Form(QtGui.QWidget):
                 arduinoservodoor.write("91")
                 globalvars.doorclose = not globalvars.doorclose
                 print globalvars.doorclose
+                target.write("door open\n")
             except:
                 self.command_history.appendPlainText("Error reading from servo arduino\n")
         else:	
@@ -389,6 +391,7 @@ class Ui_Form(QtGui.QWidget):
                     arduinoCapSense.flushInput()
                     capdata = arduinoCapSense.readline()
                     target.write(capdata)
+                    target.write("door closed\n")
                     #target.write("\n")
                     print capdata
                         #values = line.decode('ascii').split(':')
@@ -591,7 +594,7 @@ class receiving(QtCore.QThread):
 		while True:
 			data, addr = sockr.recvfrom(1024) # buffer size is 1024 bytes
 			data = float (data)
-			self.emit(QtCore.SIGNAL('PERCENTDIF'), data)
+			self.emit(QtCore.SIGNAL('CAP'), data)
 
 #def collectServoData(self, q):
 #    doorclose = self.doorclose

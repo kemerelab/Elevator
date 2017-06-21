@@ -78,9 +78,9 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 #define SERVOM_90 480
 //N
 #define SERVONMIN  171
-#define SERVONMAX  559
-#define SERVON_0 233
-#define SERVON_90 466
+#define SERVONMAX  561
+#define SERVON_0 220
+#define SERVON_90 430
 //O
 #define SERVOOMIN  170
 #define SERVOOMAX  556
@@ -113,6 +113,8 @@ uint16_t pulselenO;
 uint16_t pulselenP;
 
 int state = 90;
+int statechange_delay_close = 25; //ms
+int statechange_delay_open = 10; //ms
 
 void setup() {
   Serial.begin(9600);
@@ -157,27 +159,28 @@ void loop() {
     pwm.setPWM(0, 0, pulselenA);
     */
 
-    
     //*********
     //Opening and Closing slowly
     //Closing!
     int cow = input_degree;
       while(state > input_degree){
+        //Serial.println(input_degree);
         pulselenB = map(90 - state, 0, 90, SERVOB_0, SERVOB_90);
-        pulselenJ = map(state, 0, 90, SERVOJ_0, SERVOJ_90);
+        pulselenN = map(state, 0, 90, SERVON_0, SERVON_90);
         pwm.setPWM(1, 0, pulselenB);
-        pwm.setPWM(9, 0, pulselenJ);
-        delay(25);
+        pwm.setPWM(13, 0, pulselenN);
+        delay(statechange_delay_close);
         state -= 1;
       }
     //*****
     //Opening!
       while(state < input_degree){
+        //Serial.println(input_degree);
         pulselenB = map(90 - state, 0, 90, SERVOB_0, SERVOB_90);
-        pulselenJ = map(state, 0, 90, SERVOJ_0, SERVOJ_90);
+        pulselenN = map(state, 0, 90, SERVON_0, SERVON_90);
         pwm.setPWM(1, 0, pulselenB);
-        pwm.setPWM(9, 0, pulselenJ);
-        delay(25);
+        pwm.setPWM(13, 0, pulselenN);
+        delay(statechange_delay_open);
         state += 1;
       }
 
@@ -185,7 +188,7 @@ void loop() {
     
     //***** ORiginal StuFF
     //pulselenB = map(90 - input_degree, 0, 90, SERVOB_0, SERVOB_90);
-    //pwm.setPWM(1, 0, pulselenB);
+    //pwm.setPWM(1, 0, input_degree);
 
     /*
     delay(500);
@@ -216,7 +219,7 @@ void loop() {
     pulselenI = map(input_degree, 0, 90, SERVOI_0, SERVOI_90);
     pwm.setPWM(8, 0, pulselenI);
     */
-    
+  
     //***** ORiginal StuFF
     //pulselenJ = map(input_degree, 0, 90, SERVOJ_0, SERVOJ_90);
     //pwm.setPWM(9, 0, pulselenJ);
@@ -233,9 +236,10 @@ void loop() {
 
     pulselenM = map(input_degree, 0, 90, SERVOM_0, SERVOM_90);
     pwm.setPWM(12, 0, pulselenM);
-    pulselenN = map(input_degree, 0, 90, SERVON_0, SERVON_90);
-    pwm.setPWM(13, 0, pulselenN);
-
+    */
+    //pulselenN = map(input_degree, 0, 90, SERVON_0, SERVON_90);
+    //pwm.setPWM(13, 0, input_degree);
+/*
     delay(500);
 
     pulselenO = map(input_degree, 0, 90, SERVOO_0, SERVOO_90);
