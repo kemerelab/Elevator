@@ -123,8 +123,8 @@ class Ui_Form(QtGui.QWidget):
         label_mode = QtGui.QLabel("Mode:")
         label_torque = QtGui.QLabel("Torque:")
 		
-        label_percentPixels = QtGui.QLabel("Percent Pixel Difference: ") #LOOK HERE	
-        label_percentPixels.setFont(font)
+        label_capacitance = QtGui.QLabel("Capacitance: ") #LOOK HERE	
+        label_capacitance.setFont(font)
 
         self.capacitance = QtGui.QLCDNumber(self) #LOOK HERE 
         self.capacitance.setFont(font)
@@ -136,7 +136,7 @@ class Ui_Form(QtGui.QWidget):
         self.capacitance.setPalette(palette)
 
        
-        
+        self.capacitance.setDigitCount(8)
         self.threadclass = Capacitance()
         self.threadclass.start()
 		
