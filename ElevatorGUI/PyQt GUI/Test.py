@@ -71,7 +71,7 @@ class Capacitance(QtCore.QThread):
             arduinoCapSense.flushInput()
             capdatatotal = arduinoCapSense.readline()
             target.write(capdatatotal)
-            self.emit(QtCore.SIGNAL('CAP'), capdatatotal)
+            self.emit(QtCore.SIGNAL('CAP'),capdatatotal)
             time.sleep(1.5)
 
 class Ui_Form(QtGui.QWidget):
@@ -135,7 +135,7 @@ class Ui_Form(QtGui.QWidget):
         palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.Dark, brush)
         self.capacitance.setPalette(palette)
 
-       
+        self.capacitance.setDigitCount(8)
         
         self.threadclass = Capacitance()
         self.threadclass.start()
@@ -268,6 +268,7 @@ class Ui_Form(QtGui.QWidget):
 
 
     def updateCapacitance(self, val):
+        #print(val)
         self.capacitance.display(val)
 
 
