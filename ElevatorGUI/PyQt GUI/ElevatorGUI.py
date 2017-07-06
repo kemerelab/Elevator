@@ -31,11 +31,17 @@ try:
 except:
     pass
 
+try:
+    arduinoservodoor = Serial('/dev/ttyACM1', 9600)
+except:
+    pass
+
 class Ui_Form(QtGui.QWidget):
     def __init__(self):
         super(Ui_Form, self).__init__()
         self.currentPosition = 0
         self.level_position = {1:0, 2:1000, 3:2000}
+        self.doorstat = True
         self.setupUi()
 	
 
@@ -128,6 +134,7 @@ class Ui_Form(QtGui.QWidget):
         self.btn_assign.setEnabled(False)
 
         self.btn_run = QtGui.QPushButton("Run")
+        self.btn_doorstat = QtGui.QPushButton("Open/Close")
         self.progress_bar = QtGui.QProgressBar()
 
         label_history = QtGui.QLabel("Command History")
@@ -188,6 +195,7 @@ class Ui_Form(QtGui.QWidget):
         verticalLayout2.addWidget(label_motorState)
         verticalLayout2.addLayout(horizontalLayout)
         verticalLayout2.addWidget(self.btn_run, 0, QtCore.Qt.AlignHCenter)
+        verticalLayout2.addWidget(self.bt_doorstatus, 0, QtCore.Qt.AlignHCenter)
         verticalLayout2.addWidget(self.progress_bar)
         verticalLayout2.addSpacerItem(rowSpacer)
         formLayout3 = QtGui.QFormLayout()
@@ -205,6 +213,7 @@ class Ui_Form(QtGui.QWidget):
 
 
         self.btn_run.clicked.connect(self.collectMotorData)
+        self.btn_doorstatus.clicked.connect(self.sendServoData)
         self.preset_checkbox.stateChanged.connect(self.updateUI)
         self.comboBox_level.currentIndexChanged.connect(self.updateUI)
         self.btn_assign.clicked.connect(self.assignPosition)
@@ -234,7 +243,8 @@ class Ui_Form(QtGui.QWidget):
         if speed == 0 and speed_valid == True:
             self.errorMessage(1)
         if speed > 150 or speed < 0:
-            self.errorMessagself.level_positione(2)
+            self.errorMessage(2)
+            #self.level_position(2)
             speed = 0
         speed = int(speed)
 
@@ -309,6 +319,25 @@ class Ui_Form(QtGui.QWidget):
         self.command_history.appendPlainText("Current position: " + str(self.currentPosition))
         self.command_history.appendPlainText("")
 		
+
+    def sendServoData(self):
+        # Open or close elevator door when called
+        if doorstat:
+            # When the door is open, command servo to close door by returning to position at 0 degrees
+            try:
+                arduinoservodoor.write("0")
+                doorstat = not doorstat
+            # Report error if servo data unable to cause door to close
+            except:
+                self.command_history.appendPlainText("Error sending servo data")
+        else:
+            # When the door is closed, command servo to open door by returning to position at 90 degrees
+            try:
+                arduinoservodoor.write("90")
+                doorstat = not doorstat
+            # Report error if servo data unable to cause door to open
+            except:
+                self.command_history.appendPlainText("Error sending servo data")
 
     def level_calculations(self):
         # This method is called in collectMotorData() and updateUI()
