@@ -1,0 +1,2 @@
+doorclose = False
+quitThread = False

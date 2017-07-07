@@ -2,13 +2,17 @@
 # http://pyqt.sourceforge.net/Docs/PyQt4/classes.html
 # Written for AMIS-30543 driver.
 
+'''
+At an RPM of 60 and an input of 200 steps in mode 1/1, takes motor 1 second to complete task
+At an RPM of 120 and an input of 200 steps in mode 1/2, takes motor 1 second to complete task
+'''
 import sys
 import RNELBanner_rc
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtGui import QPalette
 from serial import *
 #imports for multithreading
-import threading
+from threading import Thread, Event
 
 import multiprocessing
 
@@ -23,13 +27,52 @@ import time
 import cv2
 import numpy as np
 from scipy.misc import imresize
+
+import globalvars
+
+import struct
+
+import Queue
 ##### end
 
+#global doorclose
+#doorclose = True
 
 try:
-    arduino = Serial('/dev/ttyACM0', 115200)
+    arduino = Serial('/dev/ttyACM0', 115200, timeout = 0.5)
+    print("successfully connected to orig arduino!")
 except:
     pass
+
+try:
+    arduinoservodoor = Serial('/dev/ttyACM1', 9600)
+    print("successfully connected to servo arduino!")
+except:
+    pass
+    
+try:
+    arduinoCapSense = Serial('/dev/ttyACM2', 115200)
+    print("successfully connected to cap sensor arduino!")
+except:
+    pass    
+
+#doorclose = True
+
+target = open("/home/kemerelab/Desktop/CapSenseData.out", 'w')
+
+class Capacitance(QtCore.QThread):
+#   def __init__(self, threadID, name):
+#      Thread.__init__(self)
+#      self.threadID = threadID
+#      self.name = capacitiveSensorThread
+   
+   def run(self):
+        while globalvars.quitThread == False:
+            arduinoCapSense.flushInput()
+            capdatatotal = arduinoCapSense.readline()
+            target.write(capdatatotal)
+            self.emit(QtCore.SIGNAL('CAP'), capdatatotal)
+            time.sleep(1.5)
 
 try:
     arduinoservodoor = Serial('/dev/ttyACM1', 9600)
@@ -41,8 +84,18 @@ class Ui_Form(QtGui.QWidget):
         super(Ui_Form, self).__init__()
         self.currentPosition = 0
         self.level_position = {1:0, 2:1000, 3:2000}
-        self.doorstat = True
+
+#        self.doorclose = True
         self.setupUi()
+    
+    
+    def closeEvent(self, event):
+        target.close()
+        globalvars.quitThread = True
+        time.sleep(1)
+        t2.join()
+        print "User has clicked the red x on the main window"
+        event.accept()
 	
 
     def setupUi(self):
@@ -76,28 +129,28 @@ class Ui_Form(QtGui.QWidget):
         label_mode = QtGui.QLabel("Mode:")
         label_torque = QtGui.QLabel("Torque:")
 		
-        label_percentPixels = QtGui.QLabel("Percent Pixel Difference: ") #LOOK HERE	
-        label_percentPixels.setFont(font)
+        label_capacitance = QtGui.QLabel("Capacitance: ") #LOOK HERE	
+        label_capacitance.setFont(font)
 
-        self.percentPixels = QtGui.QLCDNumber(self) #LOOK HERE 
-        self.percentPixels.setFont(font)
+        self.capacitance = QtGui.QLCDNumber(self) #LOOK HERE 
+        self.capacitance.setFont(font)
         palette = QPalette()
        # palette.setBrush(QtGui.QPalette.Light, QtCore.Qt.black)
         brush = QtGui.QBrush(QtGui.QColor(0,0,0))
         brush.setStyle(QtCore.Qt.SolidPattern)
         palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.Dark, brush)
-        self.percentPixels.setPalette(palette)
+        self.capacitance.setPalette(palette)
 
        
-        
-        self.threadclass = receiving()
+        self.capacitance.setDigitCount(8)
+        self.threadclass = Capacitance()
         self.threadclass.start()
 		
-        self.connect(self.threadclass, QtCore.SIGNAL('PERCENTDIF'), self.updatePercentPixelLCD)
+        self.connect(self.threadclass, QtCore.SIGNAL('CAP'), self.updateCapacitance)
 
         
         
-        self.percentPixels.display(0) # just so something is there
+        self.capacitance.display(0) # just so something is there
                 
 
         self.lineEdit_speed = QtGui.QLineEdit()
@@ -136,6 +189,7 @@ class Ui_Form(QtGui.QWidget):
         self.btn_run = QtGui.QPushButton("Run")
         self.btn_doorstat = QtGui.QPushButton("Open/Close")
         self.progress_bar = QtGui.QProgressBar()
+        self.btn_doorstat = QtGui.QPushButton("Open/Close")
 
         label_history = QtGui.QLabel("Command History")
         label_history.setFont(font)
@@ -173,7 +227,7 @@ class Ui_Form(QtGui.QWidget):
         formLayout2.setLabelAlignment(QtCore.Qt.AlignLeft)
         formLayout2.addRow(label_level, self.comboBox_level)
 
-        formLayout2.addRow(label_percentPixels, self.percentPixels) #LOOK HERE
+        formLayout2.addRow(label_capacitance, self.capacitance) #LOOK HERE
 
         verticalLayout = QtGui.QVBoxLayout()
         verticalLayout.addWidget(self.preset_checkbox)
@@ -195,14 +249,14 @@ class Ui_Form(QtGui.QWidget):
         verticalLayout2.addWidget(label_motorState)
         verticalLayout2.addLayout(horizontalLayout)
         verticalLayout2.addWidget(self.btn_run, 0, QtCore.Qt.AlignHCenter)
-        verticalLayout2.addWidget(self.bt_doorstatus, 0, QtCore.Qt.AlignHCenter)
+        verticalLayout2.addWidget(self.btn_doorstat, 0, QtCore.Qt.AlignRight)
         verticalLayout2.addWidget(self.progress_bar)
         verticalLayout2.addSpacerItem(rowSpacer)
         formLayout3 = QtGui.QFormLayout()
         verticalLayout2.addLayout(formLayout3)
 
 
-        formLayout3.addRow(label_percentPixels, self.percentPixels) #LOOK HERE
+        formLayout3.addRow(label_capacitance, self.capacitance) #LOOK HERE
      
         verticalLayout2.addWidget(label_history)
         verticalLayout2.addWidget(self.command_history)
@@ -213,15 +267,15 @@ class Ui_Form(QtGui.QWidget):
 
 
         self.btn_run.clicked.connect(self.collectMotorData)
-        self.btn_doorstatus.clicked.connect(self.sendServoData)
+        self.btn_doorstat.clicked.connect(self.sendServoData)
         self.preset_checkbox.stateChanged.connect(self.updateUI)
         self.comboBox_level.currentIndexChanged.connect(self.updateUI)
         self.btn_assign.clicked.connect(self.assignPosition)
         self.btn_assign.clicked.connect(self.updateUI)
 
 
-    def updatePercentPixelLCD(self, val):
-        self.percentPixels.display(val)
+    def updateCapacitance(self, val):
+        self.capacitance.display(val)
 
 
 
@@ -246,16 +300,17 @@ class Ui_Form(QtGui.QWidget):
             self.errorMessage(2)
             #self.level_position(2)
             speed = 0
-        speed = int(speed)
-
-        if steps == 0 and steps_valid == True:
-            if self.preset_checkbox.checkState() == 0:
-                self.errorMessage(3)
-            if self.preset_checkbox.checkState() == 2:
-                self.errorMessage(6)
-        if steps < 0:
-            self.errorMessage(8)
             steps = 0
+        speed = int(speed)
+        if(speed != 0):
+            if steps == 0 and steps_valid == True:
+                if self.preset_checkbox.checkState() == 0:
+                    self.errorMessage(3)
+                if self.preset_checkbox.checkState() == 2:
+                    self.errorMessage(6)
+            if steps < 0:
+                self.errorMessage(8)
+                steps = 0
         steps = int(steps)
 
         # Do not step past the top and bottom of the maze
@@ -271,7 +326,8 @@ class Ui_Form(QtGui.QWidget):
             self.currentPosition -= int(steps)
 
         mode = int(self.comboBox_mode.currentText()[2:])
-
+        
+        speed = int(speed) * mode
         try:
             required_time = (steps * mode)/(speed * float(200./60))
         except:
@@ -281,7 +337,7 @@ class Ui_Form(QtGui.QWidget):
         # Multiply the number of steps by the reciprocal of the mode
         # This will not affect position tracking as it occurs after position tracking
         self.steps = int(steps) * mode
-
+        #print (mode)
         self.sendMotorData(str(speed), str(self.steps), str(mode), torque, direction, required_time)
         
     def sendMotorData(self, speed, steps, mode, torque, direction, required_time):
@@ -289,8 +345,6 @@ class Ui_Form(QtGui.QWidget):
 
         while len(speed) < 4:
             speed = "0" + speed
-        print(speed)
-        print(self.level_position)
 
         while len(steps) < 8:
             steps = "0" + steps
@@ -300,6 +354,8 @@ class Ui_Form(QtGui.QWidget):
         data = 'x'+speed+'x'+steps+'x'+mode+'x'+torque+'x'+direction
         self.command_history.appendPlainText(data)
         self.command_history.appendPlainText("Estimated time required (seconds): " + str(required_time))
+
+        # self.sendServoData()
 
         try:
             arduino.write(data)
@@ -318,7 +374,45 @@ class Ui_Form(QtGui.QWidget):
 		#### I think hall effect sensor reading should go here
         self.command_history.appendPlainText("Current position: " + str(self.currentPosition))
         self.command_history.appendPlainText("")
-		
+	
+    def sendServoData(self):
+        if globalvars.doorclose:
+            try:
+                arduinoservodoor.write("91")
+                globalvars.doorclose = not globalvars.doorclose
+                print globalvars.doorclose
+                target.write("door open\n")
+            except:
+                self.command_history.appendPlainText("Error reading from servo arduino\n")
+        else:	
+            try:
+                arduinoservodoor.write("-5")
+                time.sleep(1.5)
+                arduinoservodoor.write("-3")
+                time.sleep(1.5)
+                arduinoservodoor.write("-1")
+                globalvars.doorclose = not globalvars.doorclose
+                print globalvars.doorclose
+                try:
+                    #while True:
+                    arduinoCapSense.flushInput()
+                    capdata = arduinoCapSense.readline()
+                    target.write(capdata)
+                    target.write("door closed\n")
+                    #target.write("\n")
+                    print capdata
+                        #values = line.decode('ascii').split(':')
+                        #print arduinoCapSense.readline()
+                        #print (values)
+                  #  time.sleep(0.001)
+                    #for byte in arduinoCapSense.read():
+                        #print(ord(byte))
+                        #byte_range = bytearray(b'\x85W\xe2\xa2I')
+                        #date_header = struct.unpack('>BL', byte_range)
+                except:
+                    self.command_history.appendPlainText("Error writing to capacitive sensor arduino\n")
+            except:
+                self.command_history.appendPlainText("Error writing to servo arduino\n")
 
     def sendServoData(self):
         # Open or close elevator door when called
@@ -400,7 +494,7 @@ class Ui_Form(QtGui.QWidget):
             invalid_box.setInformativeText("<big>Please set a speed to start the motor.")
         if num == 2:
             invalid_box.setText("<br>The speed cannot be set.")
-            invalid_box.setInformativeText("<big>The speed must be greater than 0 but less than the maximum RPM of 150.")           
+            invalid_box.setInformativeText("<big>The speed must be greater than 0 but less than the maximum RPM of 150. The steps have been set to 0. Please try again at a lower speed.")           
         if num == 3:
             invalid_box.setText("<br>The distance has not been set.")
             invalid_box.setInformativeText("<big>Please set a distance to start the motor.") 
@@ -441,18 +535,37 @@ class update_thread(QtCore.QThread):
     def __init__(self, steps):
         super(update_thread, self).__init__()
         self.steps = steps
-
+    
     def run(self):
-        # Track steps completed by reading serial port
+        # Track steps completed by reading serial port       
         all_entries = []
         step_entry = []
+        lencount = len(all_entries)
+        count = 0
         while len(all_entries) < self.steps:
-            for byte in arduino.read():
+            if lencount == len(all_entries):
+                count += 1
+                if count > 5:
+                    self.bar_value.emit(self.steps)
+                    break
+            lencount = len(all_entries)
+            for byte in arduino.read():                
+                count = 0                
+                #print (byte)
                 step_entry.append(byte)
+                #print (step_entry)
+                
+                #length of previous all_entries
+                #compare to current length
+                #if value is same increment counter
+                #update lencount               
                 if byte == '\n':
                     all_entries.append(step_entry)
+                    #print(all_entries)
                     self.bar_value.emit(len(all_entries))
                     step_entry = []
+            #print (len(all_entries),"moo", count)
+            
 
 class level(QtCore.QThread): #shows what level we are on and will run the reward wells
 	
@@ -507,47 +620,247 @@ class receiving(QtCore.QThread):
 		while True:
 			data, addr = sockr.recvfrom(1024) # buffer size is 1024 bytes
 			data = float (data)
-			self.emit(QtCore.SIGNAL('PERCENTDIF'), data)
+			self.emit(QtCore.SIGNAL('CAP'), data)
 
+#def collectServoData(self, q):
+#    doorclose = self.doorclose
+#    q.put(doorclose)    
 
+def callPiCamDisplay():
+	os.system('python PiCamDisplay.py')
 
-#def callPiCamDisplay():
-#	os.system('python PiCamDisplay.py')
+#def callRewardWell1():
+#	os.system('python RewardWellLevel1.py')
 
-def callRewardWell1():
-	os.system('python RewardWellLevel1.py')
+#def callRewardWell2():
+#	os.system('python RewardWellLevel2.py')
 
-def callRewardWell2():
-	os.system('python RewardWellLevel2.py')
-
-def callRewardWell3():
-	os.system('python RewardWellLevel3.py')
+#def callRewardWell3():
+#	os.system('python RewardWellLevel3.py')
 
 #def callRewardWell():
 	#os.system('python RewardWell.py')
 
+def callRewardWells():
+    HIGH = 0
+    LOW = 1
+
+#    doorclose = Event()
+#    if not obj:
+#        doorclose.set()
+#    elif obj:
+#        doorclose.clear()
+
+#    print obj
+#    print doorclose
+    
+    GPIO.setwarnings(False)
+    GPIO.setmode(GPIO.BCM)
+    wellnum = 0
+    checker1 = 1
+    checker2 = 1
+    checker3 = 1
+    checker4 = 1
+    checker5 = 1
+    checker6 = 1
+    trigger1 = 15
+    pump1 = 17
+    trigger2 = 18
+    pump2 = 22
+    trigger3 = 23#might cause an error, 4 or 04
+    pump3 = 10 #might cause an error, 2 or 02
+    trigger4 = 24
+    pump4 = 11
+    trigger5 = 25
+    pump5 = 13 	
+    trigger6 = 8
+    pump6 = 26
+
+    GPIO.setup(pump1, GPIO.OUT)
+    GPIO.setup(trigger1, GPIO.IN)
+    GPIO.setup(pump2, GPIO.OUT)
+    GPIO.setup(trigger2, GPIO.IN)
+    GPIO.setup(pump3, GPIO.OUT)
+    GPIO.setup(trigger3, GPIO.IN)
+    GPIO.setup(pump4, GPIO.OUT)
+    GPIO.setup(trigger4, GPIO.IN)
+    GPIO.setup(pump5, GPIO.OUT)
+    GPIO.setup(trigger5, GPIO.IN)
+    GPIO.setup(pump6, GPIO.OUT)
+    GPIO.setup(trigger6, GPIO.IN)
+
+    #for outputs, 0 enables pump and 1 turns it off 
+
+    GPIO.output(pump1, LOW)
+    GPIO.output(pump2, LOW)
+    GPIO.output(pump3, LOW)
+    GPIO.output(pump4, LOW)
+    GPIO.output(pump5, LOW)
+    GPIO.output(pump6, LOW)
+    
+
+    while globalvars.quitThread == False:
+        #print obj
+        time.sleep(0.05)
+        if globalvars.doorclose:
+
+#            doorclose.set()
+
+            if wellnum == 1:
+                checker2 = 1
+                wellnum = 0
+                #print checker2
+            elif wellnum == 2:
+                checker1 = 1
+                wellnum = 0
+                #print checker1
+            elif wellnum == 3:
+                checker4 = 1
+                wellnum = 0
+                #print checker4
+            elif wellnum == 4:
+                checker3 = 1
+                wellnum = 0
+                #print checker3
+            elif wellnum == 5:
+                checker6 = 1
+                wellnum = 0
+                #print checker6
+            elif wellnum == 6:
+                checker5 = 1
+                wellnum = 0
+                #print checker5
+        
+        elif not globalvars.doorclose and wellnum == 0:
+
+#            doorclose.clear()
+            trig1input = GPIO.input(trigger1)
+            #print(trig1input)
+            trig2input = GPIO.input(trigger2)
+            #print(trig2input)
+            if trig1input == True and checker1 == 1: 
+                GPIO.output(pump1, HIGH)
+                print "triggering reward! :)      1"
+                checker2 = 0	    
+                time.sleep(1)
+                GPIO.output(pump1, LOW)
+                checker1 = 0
+                wellnum = 1
+    #            print checker2
+#                doorclose.wait()
+                checker2 = 1
+                print checker2
+                
+            
+            elif trig2input == True and checker2 == 1: 
+                GPIO.output(pump2, HIGH)
+                print "triggering reward! :)     2"
+                checker1 = 0        
+                time.sleep(1)
+                GPIO.output(pump2, LOW)
+                checker2 = 0
+                wellnum = 2
+    #            print checker1
+                print wellnum
+    #            doorclose.wait()
+                checker1 = 1
+    #            print checker1
+            
+            elif GPIO.input(trigger3) == True and checker1 == 3: 
+                GPIO.output(pump3, HIGH)
+                print "triggering reward! :)      3"
+                checker4 = 0	    
+                time.sleep(1)
+                GPIO.output(pump3, LOW)
+                checker3 = 0
+                wellnum = 3
+                print wellnum
+    #            print checker4
+    #            doorclose.wait()
+                checker4 = 1
+    #            print checker4
+                
+            elif GPIO.input(trigger4) == True and checker4 == 1: 
+                GPIO.output(pump4, HIGH)
+                print "triggering reward! :)     4"
+                checker3 = 0        
+                time.sleep(1)
+                GPIO.output(pump4, LOW)
+                checker4 = 0
+                wellnum = 4
+    #            print checker3
+#                doorclose.wait()
+                checker3 = 1
+                print checker3
+                
+            elif GPIO.input(trigger5) == True and checker5 == 1: 
+                GPIO.output(pump5, HIGH)
+                print "triggering reward! :)      5"
+                checker6 = 0	    
+                time.sleep(1)
+                GPIO.output(pump5, LOW)
+                checker5 = 0
+                wellnum = 5
+    #            print checker6
+#                doorclose.wait()
+                checker6 = 1
+                print checker6
+                
+            elif GPIO.input(trigger6) == True and checker6 == 1: 
+                GPIO.output(pump6, HIGH)
+                print "triggering reward! :)     6"
+                checker5 = 0        
+                time.sleep(1)
+                GPIO.output(pump6, LOW)
+                checker6 = 0
+                wellnum = 6
+    #            print checker5
+#                doorclose.wait()
+                checker5 = 1
+                print checker5
+                
+t2 = Thread(target = callRewardWells, args = ())           
+
 if __name__ == '__main__':
 
-	p = multiprocessing.Process(target = callPiCamDisplay)
-	p.start()
+#    p = multiprocessing.Process(target = callPiCamDisplay)
+#    p.start()
 	#time.sleep(5)
 	#os.kill(p.pid, signal.SIGKILL)
-	q = multiprocessing.Process(target = callRewardWell1)
-	q.start()
+#	q = multiprocessing.Process(target = callRewardWell1)
+#	q.start()
 
-	w = multiprocessing.Process(target = callRewardWell2)
-	w.start()
+#	w = multiprocessing.Process(target = callRewardWell2)
+#	w.start()
 
-	e = multiprocessing.Process(target = callRewardWell3)
-	e.start()
+#	e = multiprocessing.Process(target = callRewardWell3)
+#	e.start()
+    #global doorclose
+    globalvars.doorclose = True
+   
+    #print globalvars.doorclose in globals()
+    #print "It's okay if it's false b/c you have import access to it"
+        
+    app = QtGui.QApplication(sys.argv)
+    ex = Ui_Form()
+    ex.show()
+    
+    ex.raise_()
+    
+#    q = Queue.Queue()
+    
+#    t1 = Thread(target = collectServoData, args = (ex.doorclose))
+    #t2 = Thread(target = callRewardWells, args = ())
+#    t1.start()
+    t2.start()
 
-	app = QtGui.QApplication(sys.argv)
-	ex = Ui_Form()
-	ex.show()
 
-	ex.raise_()
+#    ex.raise_()
 
-	sys.exit(app.exec_())
-
+    sys.exit(app.exec_())
+    #target.close()
+    #print "closed!"
+#    t1.join()
+    #t2.join()
 	
 
