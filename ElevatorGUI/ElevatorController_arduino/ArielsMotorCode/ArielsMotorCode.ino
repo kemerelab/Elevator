@@ -61,7 +61,7 @@ void loop()
 
       for (int x = 0; x < input_step; x++)
       {
-        step(input_speed, input_torque);
+        step(input_speed);
         Serial.println(x);
       }
   }
@@ -69,15 +69,15 @@ void loop()
 
 // Sends a pulse on the NXT/STEP pin to tell the driver to take
 // one step, and also delays to control the speed of the motor.
-void step(float input_speed)
+void step(float user_speed)
 {
   // The NXT/STEP minimum high pulse width is 2 microseconds.
   digitalWrite(amisStepPin, HIGH);
   // delay = time each step takes, or
   // delay = ((60,000 msecs)/(200 steps)) * (1/RPM)
-  delay((60000/200) * (1/input_speed));
+  delay((60000/200) * (1/user_speed));
   digitalWrite(amisStepPin, LOW);
-  delay((60000/200) * (1/input_speed));
+  delay((60000/200) * (1/user_speed));
 }
 
 // Writes a high or low value to the direction pin to specify
