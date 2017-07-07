@@ -74,11 +74,17 @@ class Capacitance(QtCore.QThread):
             self.emit(QtCore.SIGNAL('CAP'), capdatatotal)
             time.sleep(1.5)
 
+try:
+    arduinoservodoor = Serial('/dev/ttyACM1', 9600)
+except:
+    pass
+
 class Ui_Form(QtGui.QWidget):
     def __init__(self):
         super(Ui_Form, self).__init__()
         self.currentPosition = 0
         self.level_position = {1:0, 2:1000, 3:2000}
+
 #        self.doorclose = True
         self.setupUi()
     
@@ -180,6 +186,7 @@ class Ui_Form(QtGui.QWidget):
         self.btn_assign.setEnabled(False)
 
         self.btn_run = QtGui.QPushButton("Run")
+        self.btn_doorstat = QtGui.QPushButton("Open/Close")
         self.progress_bar = QtGui.QProgressBar()
         self.btn_doorstat = QtGui.QPushButton("Open/Close")
 
@@ -405,6 +412,25 @@ class Ui_Form(QtGui.QWidget):
                     self.command_history.appendPlainText("Error writing to capacitive sensor arduino\n")
             except:
                 self.command_history.appendPlainText("Error writing to servo arduino\n")
+
+    def sendServoData(self):
+        # Open or close elevator door when called
+        if doorstat:
+            # When the door is open, command servo to close door by returning to position at 0 degrees
+            try:
+                arduinoservodoor.write("0")
+                doorstat = not doorstat
+            # Report error if servo data unable to cause door to close
+            except:
+                self.command_history.appendPlainText("Error sending servo data")
+        else:
+            # When the door is closed, command servo to open door by returning to position at 90 degrees
+            try:
+                arduinoservodoor.write("90")
+                doorstat = not doorstat
+            # Report error if servo data unable to cause door to open
+            except:
+                self.command_history.appendPlainText("Error sending servo data")
 
     def level_calculations(self):
         # This method is called in collectMotorData() and updateUI()
