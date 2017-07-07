@@ -146,7 +146,6 @@ class Ui_Form(QtGui.QWidget):
         
         self.capacitance.display(0) # just so something is there
                 
-
         self.lineEdit_speed = QtGui.QLineEdit()
         self.lineEdit_speed.setMaximumSize(QtCore.QSize(100, 30))
         self.lineEdit_speed.setText("0")
@@ -650,6 +649,9 @@ def callRewardWells():
     trigger6 = 8
     pump6 = 26
 
+    cap_resetpin = 21
+    GPIO.setup(cap_resetpin, GPIO.OUT)
+
     GPIO.setup(pump1, GPIO.OUT)
     GPIO.setup(trigger1, GPIO.IN)
     GPIO.setup(pump2, GPIO.OUT)
@@ -671,6 +673,7 @@ def callRewardWells():
     GPIO.output(pump4, LOW)
     GPIO.output(pump5, LOW)
     GPIO.output(pump6, LOW)
+    GPIO.output(cap_resetpin, LOW)
     
 
     while globalvars.quitThread == False:
@@ -714,10 +717,12 @@ def callRewardWells():
             #print(trig2input)
             if trig1input == True and checker1 == 1: 
                 GPIO.output(pump1, HIGH)
+                GPIO.output(cap_resetpin, HIGH)
                 print "triggering reward! :)      1"
                 checker2 = 0	    
                 time.sleep(1)
                 GPIO.output(pump1, LOW)
+                GPIO.output(cap_resetpin, LOW)
                 checker1 = 0
                 wellnum = 1
     #            print checker2
@@ -728,10 +733,12 @@ def callRewardWells():
             
             elif trig2input == True and checker2 == 1: 
                 GPIO.output(pump2, HIGH)
+                GPIO.output(cap_resetpin, HIGH)
                 print "triggering reward! :)     2"
                 checker1 = 0        
                 time.sleep(1)
                 GPIO.output(pump2, LOW)
+                GPIO.output(cap_resetpin, LOW)
                 checker2 = 0
                 wellnum = 2
     #            print checker1
@@ -742,10 +749,12 @@ def callRewardWells():
             
             elif GPIO.input(trigger3) == True and checker1 == 3: 
                 GPIO.output(pump3, HIGH)
+                GPIO.output(cap_resetpin, HIGH)
                 print "triggering reward! :)      3"
                 checker4 = 0	    
                 time.sleep(1)
                 GPIO.output(pump3, LOW)
+                GPIO.output(cap_resetpin, LOW)
                 checker3 = 0
                 wellnum = 3
                 print wellnum
@@ -756,10 +765,12 @@ def callRewardWells():
                 
             elif GPIO.input(trigger4) == True and checker4 == 1: 
                 GPIO.output(pump4, HIGH)
+                GPIO.output(cap_resetpin, HIGH)
                 print "triggering reward! :)     4"
                 checker3 = 0        
                 time.sleep(1)
                 GPIO.output(pump4, LOW)
+                GPIO.output(cap_resetpin, LOW)
                 checker4 = 0
                 wellnum = 4
     #            print checker3
@@ -769,10 +780,12 @@ def callRewardWells():
                 
             elif GPIO.input(trigger5) == True and checker5 == 1: 
                 GPIO.output(pump5, HIGH)
+                GPIO.output(cap_resetpin, HIGH)
                 print "triggering reward! :)      5"
                 checker6 = 0	    
                 time.sleep(1)
                 GPIO.output(pump5, LOW)
+                GPIO.output(cap_resetpin, LOW)
                 checker5 = 0
                 wellnum = 5
     #            print checker6
@@ -782,10 +795,12 @@ def callRewardWells():
                 
             elif GPIO.input(trigger6) == True and checker6 == 1: 
                 GPIO.output(pump6, HIGH)
+                GPIO.output(cap_resetpin, HIGH)
                 print "triggering reward! :)     6"
                 checker5 = 0        
                 time.sleep(1)
                 GPIO.output(pump6, LOW)
+                GPIO.output(cap_resetpin, LOW)
                 checker6 = 0
                 wellnum = 6
     #            print checker5
