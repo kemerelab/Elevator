@@ -15,6 +15,7 @@ from serial import *
 from threading import Thread, Event
 
 import multiprocessing
+import math
 
 import socket
 import os
@@ -123,7 +124,7 @@ class Ui_Form(QtGui.QWidget):
         label_motorState = QtGui.QLabel("Stepper Motor Parameters")
         label_motorState.setFont(font)
 
-        label_speed = QtGui.QLabel("Speed (RPM):")
+        label_time = QtGui.QLabel("Time Between Levels (seconds):")
         label_steps = QtGui.QLabel("Steps:")
         label_direction = QtGui.QLabel("Direction:")
         label_mode = QtGui.QLabel("Mode:")
@@ -152,9 +153,9 @@ class Ui_Form(QtGui.QWidget):
         
         self.capacitance.display(0) # just so something is there
                 
-        self.lineEdit_speed = QtGui.QLineEdit()
-        self.lineEdit_speed.setMaximumSize(QtCore.QSize(100, 30))
-        self.lineEdit_speed.setText("0")
+        self.lineEdit_time = QtGui.QLineEdit()
+        self.lineEdit_time.setMaximumSize(QtCore.QSize(100, 30))
+        self.lineEdit_time.setText("0")
         self.lineEdit_steps = QtGui.QLineEdit()
         self.lineEdit_steps.setMaximumSize(QtCore.QSize(100, 30))
         self.lineEdit_steps.setText("0")
@@ -196,7 +197,7 @@ class Ui_Form(QtGui.QWidget):
         self.command_history.setMaximumSize(QtCore.QSize(1000, 500))
         self.command_history.setReadOnly(True)
         self.command_history.appendPlainText("Note: The speed will be scaled according to the microstepping mode.")
-        self.command_history.appendPlainText("Note: The speed and steps inputs must be positive integers. Numbers that are not integers will be rounded down.")
+        self.command_history.appendPlainText("Note: The time and steps inputs must be positive integers. Numbers that are not integers will be rounded down.")
         self.command_history.appendPlainText("")
 
         font = QtGui.QFont("Helvetica", 12)
@@ -213,7 +214,7 @@ class Ui_Form(QtGui.QWidget):
         formLayout = QtGui.QFormLayout()
         formLayout.setFieldGrowthPolicy(QtGui.QFormLayout.AllNonFixedFieldsGrow)
         formLayout.setLabelAlignment(QtCore.Qt.AlignLeft)
-        formLayout.addRow(label_speed, self.lineEdit_speed)
+        formLayout.addRow(label_time, self.lineEdit_time)
         formLayout.addRow(label_steps, self.lineEdit_steps)
         formLayout.addRow(label_direction, self.comboBox_direction)
         formLayout.addRow(label_mode, self.comboBox_mode)
@@ -276,7 +277,8 @@ class Ui_Form(QtGui.QWidget):
     def updateCapacitance(self, val):
         self.capacitance.display(val)
 
-
+    def reqRPM(self):
+        self.speed = (QtCore.QString.toFloat(self.lineEdit_steps.text()) * int(self.comboBox_mode.currentText()[2:]))/200
 
     def collectMotorData(self):
         minHeight, maxHeight = 0, 200000
