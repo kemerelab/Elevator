@@ -276,13 +276,22 @@ class Ui_Form(QtGui.QWidget):
 
     def updateCapacitance(self, val):
         self.capacitance.display(val)
-
+    
+    def delay(self):
+        self.delay = self.time / (2 * QtCore.QString.toFloat(self.lineEdit_steps) * int(self.comboBox_mode.currentText()[2:]))
+        print self.delay
+        
     def reqRPM(self):
         self.speed = (QtCore.QString.toFloat(self.lineEdit_steps.text()) * int(self.comboBox_mode.currentText()[2:]))/200
+        if self.speed > 150 or self.speed < 0:
+            self.speed_valid == False
+        else:
+            self.speed_valid == True
+        return self.speed, self.speed_valid
 
     def collectMotorData(self):
         minHeight, maxHeight = 0, 200000
-        speed, speed_valid = QtCore.QString.toFloat(self.lineEdit_speed.text())
+        #speed, speed_valid = QtCore.QString.toFloat(self.lineEdit_speed.text())
         torque = str(self.comboBox_torque.currentText()[0])
 
         # If preset levels are used, calculate steps and direction
@@ -292,7 +301,9 @@ class Ui_Form(QtGui.QWidget):
         if self.preset_checkbox.checkState() == 2:
             steps_valid = True
             steps, direction = self.level_calculations()
-
+        
+        speed, speed_valid = QtCore.QString.toFloat(self.reqRPM)
+        
         if speed_valid == False or steps_valid == False:
             self.errorMessage(0)
         if speed == 0 and speed_valid == True:
@@ -327,6 +338,8 @@ class Ui_Form(QtGui.QWidget):
             self.currentPosition -= int(steps)
 
         mode = int(self.comboBox_mode.currentText()[2:])
+        
+#####   ****************************************************************
         
         speed = int(speed) * mode
         try:
