@@ -366,7 +366,7 @@ class Ui_Form(QtGui.QWidget):
         # Multiply the number of steps by the reciprocal of the mode
         # This will not affect position tracking as it occurs after position tracking
         #print (mode)
-        self.sendMotorData(str(speed), str(self.steppersteps), self.comboBox_mode.currentText()[:]), direction, str(stepdelay))
+        self.sendMotorData(str(speed), str(self.steppersteps), self.comboBox_mode.currentText()[:], direction, str(stepdelay))
         
     def sendMotorData(self, speed, steps, mode, direction, delay):
         self.btn_run.setEnabled(False)
