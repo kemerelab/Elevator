@@ -125,7 +125,8 @@ class Ui_Form(QtGui.QWidget):
         label_motorState.setFont(font)
 
         label_time = QtGui.QLabel("Time Between Levels (seconds):")
-        label_steps = QtGui.QLabel("Steps:")
+        label_steps = QtGui.QLabel("Distance (in):")
+        label_wheeldiameter = QtGui.QLabel("Wheel Diameter (in)")
         label_direction = QtGui.QLabel("Direction:")
         label_mode = QtGui.QLabel("Mode:")
         label_torque = QtGui.QLabel("Torque:")
@@ -142,14 +143,11 @@ class Ui_Form(QtGui.QWidget):
         palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.Dark, brush)
         self.capacitance.setPalette(palette)
 
-       
         self.capacitance.setDigitCount(8)
         self.threadclass = Capacitance()
         self.threadclass.start()
 		
-        self.connect(self.threadclass, QtCore.SIGNAL('CAP'), self.updateCapacitance)
-
-        
+        self.connect(self.threadclass, QtCore.SIGNAL('CAP'), self.updateCapacitance)        
         
         self.capacitance.display(0) # just so something is there
                 
@@ -158,16 +156,17 @@ class Ui_Form(QtGui.QWidget):
         self.lineEdit_time.setText("0")
         self.lineEdit_steps = QtGui.QLineEdit()
         self.lineEdit_steps.setMaximumSize(QtCore.QSize(100, 30))
-        self.lineEdit_steps.setText("0")
+        self.lineEdit_steps.setText("12")
+        self.lineEdit_wheeldiameter = QtGui.QLineEdit()
+        self.lineEdit_wheeldiameter.setText("1")
         self.comboBox_direction = QtGui.QComboBox()
         self.comboBox_direction.addItems(["Up", "Down"])
         self.comboBox_mode = QtGui.QComboBox()
         self.comboBox_mode.addItems(["1/1", "1/2", "1/4", "1/8", "1/16", "1/32", "1/64", "1/128"])
-        self.comboBox_torque = QtGui.QComboBox()
-        self.comboBox_torque.addItems(["10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%"])
-        self.comboBox_torque.setCurrentIndex(4)
-
-        
+        self.comboBox_mode.setCurrentIndex(1)
+        #self.comboBox_torque = QtGui.QComboBox()
+        #self.comboBox_torque.addItems(["10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%"])
+        #self.comboBox_torque.setCurrentIndex(4)
 
         self.preset_checkbox = QtGui.QCheckBox("Use preset elevator levels")
         self.preset_checkbox.setCheckState(False)
@@ -176,11 +175,6 @@ class Ui_Form(QtGui.QWidget):
         self.comboBox_level = QtGui.QComboBox()
         self.comboBox_level.addItems(["1", "2", "3"])
         self.comboBox_level.setEnabled(False)
-
-       
-       
-
-
 
         label_assign = QtGui.QLabel("Assign position to level?")
         self.btn_assign = QtGui.QPushButton("Assign")
@@ -197,7 +191,7 @@ class Ui_Form(QtGui.QWidget):
         self.command_history.setMaximumSize(QtCore.QSize(1000, 500))
         self.command_history.setReadOnly(True)
         self.command_history.appendPlainText("Note: The speed will be scaled according to the microstepping mode.")
-        self.command_history.appendPlainText("Note: The time and steps inputs must be positive integers. Numbers that are not integers will be rounded down.")
+        self.command_history.appendPlainText("Note: The time and distance inputs must be positive integers. Numbers that are not integers will be rounded down.")
         self.command_history.appendPlainText("")
 
         font = QtGui.QFont("Helvetica", 12)
@@ -277,12 +271,15 @@ class Ui_Form(QtGui.QWidget):
     def updateCapacitance(self, val):
         self.capacitance.display(val)
     
+    def distance (self):
+        self.distance = (self.lineEdit_steps / (math.pi * self.lineEdit_wheeldiameter)) * (200)
+    
     def delay(self):
-        self.delay = self.time / (2 * QtCore.QString.toFloat(self.lineEdit_steps) * int(self.comboBox_mode.currentText()[2:]))
+        self.delay = self.time / (2 * self.distance * int(self.comboBox_mode.currentText()[2:]))
         print self.delay
         
     def reqRPM(self):
-        self.speed = (QtCore.QString.toFloat(self.lineEdit_steps.text()) * int(self.comboBox_mode.currentText()[2:]))/200
+        self.speed = (self.distance * int(self.comboBox_mode.currentText()[2:]))/200
         if self.speed > 150 or self.speed < 0:
             self.speed_valid == False
         else:
