@@ -276,7 +276,8 @@ class Ui_Form(QtGui.QWidget):
         rotation of the stepper) in order to find number of steps that need to be
         taken to reach desired location.
         """
-        self.steppersteps = (QtCore.QString.toFloat(self.lineEdit_distance.text()) / (math.pi * self.lineEdit_wheeldiameter)) * (200 * int(self.comboBox_mode.currentText()[2:]))
+        print(float(self.lineEdit_distance.text()))
+        self.steppersteps = int (float(self.lineEdit_distance.text()) / (math.pi * float(self.lineEdit_wheeldiameter.text()))) * (200 * float(self.comboBox_mode.currentText()[2:]))
     
     def delay(self):
         """
@@ -284,7 +285,7 @@ class Ui_Form(QtGui.QWidget):
         required to get the desired distance change (to account for rests between
         steps) and the mode (to account for microstepping).
         """
-        self.delaytime = self.time / (2 * self.steppersteps)
+        self.delaytime = float(self.lineEdit_time.text()) / (2 * float(self.steppersteps))
         print("delay:", self.delaytime)
         
     def reqRPM(self):
@@ -292,13 +293,11 @@ class Ui_Form(QtGui.QWidget):
         Find RPM based off of number of steps needed to move a desired distance 
         times mode, and divided by 200
         """
-        self.speed = (self.steppersteps)/(200 * int(self.comboBox_mode.currentText()[2:]))
-        
-        if self.speed > 200 or self.speed < 0:
-            self.speed_valid == False
-        else:
-            self.speed_valid == True
-        return self.speed, self.speed_valid
+        reqspeed = (self.steppersteps)/(200 * int(self.comboBox_mode.currentText()[2:]))
+        reqspeed_valid = True
+        if reqspeed > 200 or reqspeed < 0:
+            reqspeed_valid = False
+        return reqspeed, reqspeed_valid
 
     def collectMotorData(self):
         
@@ -316,11 +315,11 @@ class Ui_Form(QtGui.QWidget):
             steps, direction = self.level_calculations()
         else:
             #steps, steps_valid = QtCore.QString.toFloat(self.lineEdit_distance.text())
-            steps = self.calculateSteps()
+            steps = (self.calculateSteps())
             direction = str(self.comboBox_direction.currentText())
-            if direction == "Up" and steps + currentPosition <= maxHeight:
+            if direction == "Up" and steps >= maxHeight - self.currentPosition:
                 steps_valid = True
-            elif direction == 'Down' and currentPosition - steps >= minHeight:
+            elif direction == 'Down' and steps <= self.currentPosition - minHeight:
                 steps_valid = True
             else:
                 steps_valid = False
@@ -329,25 +328,25 @@ class Ui_Form(QtGui.QWidget):
         
         stepdelay = self.delay()
         
-        if speed_valid == False or steps_valid == False:
-            self.errorMessage(0)
-        if speed == 0 and speed_valid == True:
-            self.errorMessage(1)
-        if speed > 200 or speed < 0:
-            self.errorMessage(2)
+        #if speed_valid == False or steps_valid == False:
+         #   self.errorMessage(0)
+        #if speed == 0 and speed_valid == True:
+         #   self.errorMessage(1)
+        #if speed > 200 or speed < 0:
+         #   self.errorMessage(2)
             #self.level_position(2)
-            speed = 0
-            steps = 0
+          #  speed = 0
+           # steps = 0
         #speed = int(speed)
-        if(speed != 0):
-            if steps == 0 and steps_valid == True:
-                if self.preset_checkbox.checkState() == 0:
-                    self.errorMessage(3)
-                if self.preset_checkbox.checkState() == 2:
-                    self.errorMessage(6)
-            if steps < 0:
-                self.errorMessage(8)
-                steps = 0
+        #if(speed != 0):
+            #if steps == 0 and steps_valid == True:
+                #if self.preset_checkbox.checkState() == 0:
+                 #   self.errorMessage(3)
+                #if self.preset_checkbox.checkState() == 2:
+               #     self.errorMessage(6)
+            #if steps < 0:
+             #   self.errorMessage(8)
+              #  steps = 0
         steps = int(steps)
 
         # Do not step past the top and bottom of the maze
@@ -383,7 +382,7 @@ class Ui_Form(QtGui.QWidget):
 
         data = 'x'+speed+'x'+steps+'x'+mode+'x'+delay+'x'+direction
         self.command_history.appendPlainText(data)
-        self.command_history.appendPlainText("Estimated time required (seconds): " + str(required_time))
+        self.command_history.appendPlainText("Estimated time required (seconds): " + self.lineEdit_time.text())
 
         # self.sendServoData()
 
