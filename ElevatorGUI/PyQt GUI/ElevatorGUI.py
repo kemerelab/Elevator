@@ -36,6 +36,8 @@ import struct
 import Queue
 ##### end
 
+minHeight, maxHeight = 0, 200000
+
 #global doorclose
 #doorclose = True
 
@@ -58,7 +60,6 @@ except:
     pass    
 
 #doorclose = True
-
 target = open("/home/kemerelab/Desktop/CapSenseData.out", 'w')
 
 class Capacitance(QtCore.QThread):
@@ -74,11 +75,6 @@ class Capacitance(QtCore.QThread):
             target.write(capdatatotal)
             self.emit(QtCore.SIGNAL('CAP'), capdatatotal)
             time.sleep(1.5)
-
-try:
-    arduinoservodoor = Serial('/dev/ttyACM1', 9600)
-except:
-    pass
 
 class Ui_Form(QtGui.QWidget):
     def __init__(self):
@@ -129,7 +125,7 @@ class Ui_Form(QtGui.QWidget):
         label_wheeldiameter = QtGui.QLabel("Wheel Diameter (in)")
         label_direction = QtGui.QLabel("Direction:")
         label_mode = QtGui.QLabel("Mode:")
-        label_torque = QtGui.QLabel("Torque:")
+        #label_torque = QtGui.QLabel("Torque:")
 		
         label_capacitance = QtGui.QLabel("Capacitance: ") #LOOK HERE	
         label_capacitance.setFont(font)
@@ -154,19 +150,21 @@ class Ui_Form(QtGui.QWidget):
         self.lineEdit_time = QtGui.QLineEdit()
         self.lineEdit_time.setMaximumSize(QtCore.QSize(100, 30))
         self.lineEdit_time.setText("0")
-        self.lineEdit_steps = QtGui.QLineEdit()
-        self.lineEdit_steps.setMaximumSize(QtCore.QSize(100, 30))
-        self.lineEdit_steps.setText("12")
+        self.lineEdit_distance = QtGui.QLineEdit()
+        self.lineEdit_distance.setMaximumSize(QtCore.QSize(100, 30))
+        self.lineEdit_distance.setText("12")
         self.lineEdit_wheeldiameter = QtGui.QLineEdit()
         self.lineEdit_wheeldiameter.setText("1")
         self.comboBox_direction = QtGui.QComboBox()
         self.comboBox_direction.addItems(["Up", "Down"])
         self.comboBox_mode = QtGui.QComboBox()
         self.comboBox_mode.addItems(["1/1", "1/2", "1/4", "1/8", "1/16", "1/32", "1/64", "1/128"])
-        self.comboBox_mode.setCurrentIndex(1)
+        self.comboBox_mode.setCurrentIndex(0)
         #self.comboBox_torque = QtGui.QComboBox()
         #self.comboBox_torque.addItems(["10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%"])
         #self.comboBox_torque.setCurrentIndex(4)
+
+        #Preset Levels >>> assign each to a 12" distance later
 
         self.preset_checkbox = QtGui.QCheckBox("Use preset elevator levels")
         self.preset_checkbox.setCheckState(False)
@@ -209,11 +207,11 @@ class Ui_Form(QtGui.QWidget):
         formLayout.setFieldGrowthPolicy(QtGui.QFormLayout.AllNonFixedFieldsGrow)
         formLayout.setLabelAlignment(QtCore.Qt.AlignLeft)
         formLayout.addRow(label_time, self.lineEdit_time)
-        formLayout.addRow(label_steps, self.lineEdit_steps)
+        formLayout.addRow(label_steps, self.lineEdit_distance)
         formLayout.addRow(label_direction, self.comboBox_direction)
         formLayout.addRow(label_mode, self.comboBox_mode)
-        formLayout.addRow(label_torque, self.comboBox_torque)
-		
+        #formLayout.addRow(label_torque, self.comboBox_torque)
+		formLayout.addRow(label_wheeldiameter, self.lineEdit_wheeldiameter)
        
 
         formLayout2 = QtGui.QFormLayout()
@@ -271,46 +269,74 @@ class Ui_Form(QtGui.QWidget):
     def updateCapacitance(self, val):
         self.capacitance.display(val)
     
-    def distance (self):
-        self.distance = (self.lineEdit_steps / (math.pi * self.lineEdit_wheeldiameter)) * (200)
+    def calculateSteps (self):
+        """
+        Distance to be traveled divided by the circumference of the wheel (distance
+        covered in one rotation) and multiplied by 200 (number of steps in one 
+        rotation of the stepper) in order to find number of steps that need to be
+        taken to reach desired location.
+        """
+        self.steppersteps = (QtCore.QString.toFloat(self.lineEdit_distance.text()) / (math.pi * self.lineEdit_wheeldiameter)) * (200 * int(self.comboBox_mode.currentText()[2:]))
     
     def delay(self):
-        self.delay = self.time / (2 * self.distance * int(self.comboBox_mode.currentText()[2:]))
-        print self.delay
+        """
+        Total time for a level change divided by 2 times the number of steps 
+        required to get the desired distance change (to account for rests between
+        steps) and the mode (to account for microstepping).
+        """
+        self.delay = self.time / (2 * self.steppersteps)
+        print("delay:", self.delay)
         
     def reqRPM(self):
-        self.speed = (self.distance * int(self.comboBox_mode.currentText()[2:]))/200
-        if self.speed > 150 or self.speed < 0:
+        """
+        Find RPM based off of number of steps needed to move a desired distance 
+        times mode, and divided by 200
+        """
+        self.speed = (self.steppersteps)/(200 * int(self.comboBox_mode.currentText()[2:]))
+        
+        if self.speed > 200 or self.speed < 0:
             self.speed_valid == False
         else:
             self.speed_valid == True
         return self.speed, self.speed_valid
 
     def collectMotorData(self):
-        minHeight, maxHeight = 0, 200000
+        
         #speed, speed_valid = QtCore.QString.toFloat(self.lineEdit_speed.text())
-        torque = str(self.comboBox_torque.currentText()[0])
+        #torque = str(self.comboBox_torque.currentText()[0])
 
         # If preset levels are used, calculate steps and direction
-        if self.preset_checkbox.checkState() == 0:
-            steps, steps_valid = QtCore.QString.toFloat(self.lineEdit_steps.text())
-            direction = str(self.comboBox_direction.currentText())
+
+        #### NEEDS TO BE REDONE********
+
+        #Not using preset levels
+
         if self.preset_checkbox.checkState() == 2:
             steps_valid = True
             steps, direction = self.level_calculations()
+        else:
+            #steps, steps_valid = QtCore.QString.toFloat(self.lineEdit_distance.text())
+            steps = self.calculateSteps()
+            direction = str(self.comboBox_direction.currentText())
+            if direction == "Up" and steps + currentPosition <= maxHeight:
+                steps_valid = True
+            elif direction == 'Down' and currentPosition - steps >= minHeight:
+                steps_valid = True
+            else:
+                steps_valid = False
         
-        speed, speed_valid = QtCore.QString.toFloat(self.reqRPM)
+        speed, speed_valid = self.reqRPM()
         
         if speed_valid == False or steps_valid == False:
             self.errorMessage(0)
         if speed == 0 and speed_valid == True:
             self.errorMessage(1)
-        if speed > 150 or speed < 0:
+        if speed > 200 or speed < 0:
             self.errorMessage(2)
             #self.level_position(2)
             speed = 0
             steps = 0
-        speed = int(speed)
+        #speed = int(speed)
         if(speed != 0):
             if steps == 0 and steps_valid == True:
                 if self.preset_checkbox.checkState() == 0:
@@ -334,24 +360,13 @@ class Ui_Form(QtGui.QWidget):
                 steps = self.currentPosition - minHeight
             self.currentPosition -= int(steps)
 
-        mode = int(self.comboBox_mode.currentText()[2:])
-        
-#####   ****************************************************************
-        
-        speed = int(speed) * mode
-        try:
-            required_time = (steps * mode)/(speed * float(200./60))
-        except:
-            required_time = 0.0
-
         # Using a microstepping mode of 1/2, for example, halves the number of steps
         # Multiply the number of steps by the reciprocal of the mode
         # This will not affect position tracking as it occurs after position tracking
-        self.steps = int(steps) * mode
         #print (mode)
-        self.sendMotorData(str(speed), str(self.steps), str(mode), torque, direction, required_time)
+        self.sendMotorData(str(speed), str(self.steppersteps), self.comboBox_mode.currentText()[:]), direction, required_time)
         
-    def sendMotorData(self, speed, steps, mode, torque, direction, required_time):
+    def sendMotorData(self, speed, steps, mode, direction, required_time):
         self.btn_run.setEnabled(False)
 
         while len(speed) < 4:
@@ -362,7 +377,7 @@ class Ui_Form(QtGui.QWidget):
         while len(mode) < 3:
             mode = "0" + mode
 
-        data = 'x'+speed+'x'+steps+'x'+mode+'x'+torque+'x'+direction
+        data = 'x'+speed+'x'+steps+'x'+mode+'x'+direction
         self.command_history.appendPlainText(data)
         self.command_history.appendPlainText("Estimated time required (seconds): " + str(required_time))
 
@@ -477,14 +492,14 @@ class Ui_Form(QtGui.QWidget):
         steps, direction = self.level_calculations()
         # If preset levels are used, disable corresponding manual inputs
         if self.preset_checkbox.checkState() == 0:
-            self.lineEdit_steps.setEnabled(True)
-            self.lineEdit_steps.setText("0")
+            self.lineEdit_distance.setEnabled(True)
+            self.lineEdit_distance.setText("0")
             self.comboBox_direction.setEnabled(True)
             self.comboBox_level.setEnabled(False)
             self.btn_assign.setEnabled(False)
         if self.preset_checkbox.checkState() == 2:
-            self.lineEdit_steps.setEnabled(False)
-            self.lineEdit_steps.setText(str(steps))
+            self.lineEdit_distance.setEnabled(False)
+            self.lineEdit_distance.setText(str(steps))
             self.comboBox_direction.setEnabled(False)
             if direction == "Up":
                 self.comboBox_direction.setCurrentIndex(0)
