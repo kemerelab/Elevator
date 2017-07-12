@@ -211,7 +211,7 @@ class Ui_Form(QtGui.QWidget):
         formLayout.addRow(label_direction, self.comboBox_direction)
         formLayout.addRow(label_mode, self.comboBox_mode)
         #formLayout.addRow(label_torque, self.comboBox_torque)
-		formLayout.addRow(label_wheeldiameter, self.lineEdit_wheeldiameter)
+        formLayout.addRow(label_wheeldiameter, self.lineEdit_wheeldiameter)
        
 
         formLayout2 = QtGui.QFormLayout()
@@ -284,8 +284,8 @@ class Ui_Form(QtGui.QWidget):
         required to get the desired distance change (to account for rests between
         steps) and the mode (to account for microstepping).
         """
-        self.delay = self.time / (2 * self.steppersteps)
-        print("delay:", self.delay)
+        self.delaytime = self.time / (2 * self.steppersteps)
+        print("delay:", self.delaytime)
         
     def reqRPM(self):
         """
@@ -327,6 +327,8 @@ class Ui_Form(QtGui.QWidget):
         
         speed, speed_valid = self.reqRPM()
         
+        stepdelay = self.delay()
+        
         if speed_valid == False or steps_valid == False:
             self.errorMessage(0)
         if speed == 0 and speed_valid == True:
@@ -364,9 +366,9 @@ class Ui_Form(QtGui.QWidget):
         # Multiply the number of steps by the reciprocal of the mode
         # This will not affect position tracking as it occurs after position tracking
         #print (mode)
-        self.sendMotorData(str(speed), str(self.steppersteps), self.comboBox_mode.currentText()[:]), direction, required_time)
+        self.sendMotorData(str(speed), str(self.steppersteps), self.comboBox_mode.currentText()[:]), direction, str(stepdelay))
         
-    def sendMotorData(self, speed, steps, mode, direction, required_time):
+    def sendMotorData(self, speed, steps, mode, direction, delay):
         self.btn_run.setEnabled(False)
 
         while len(speed) < 4:
@@ -376,8 +378,10 @@ class Ui_Form(QtGui.QWidget):
             steps = "0" + steps
         while len(mode) < 3:
             mode = "0" + mode
+        while len(delay) < 6:
+            delay = "0" + delay
 
-        data = 'x'+speed+'x'+steps+'x'+mode+'x'+direction
+        data = 'x'+speed+'x'+steps+'x'+mode+'x'+delay+'x'+direction
         self.command_history.appendPlainText(data)
         self.command_history.appendPlainText("Estimated time required (seconds): " + str(required_time))
 

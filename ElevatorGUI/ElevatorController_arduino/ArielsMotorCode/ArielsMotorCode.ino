@@ -42,18 +42,16 @@ void loop()
 {
   if(Serial.available()){
       String data = Serial.readString();
-  
+      
       // convert speed from RPM to milliseconds per step
       // 1 RPM = 200/60 steps/sec
-      input_speed = 1/(data.substring(1,5).toInt()*float(200./60000));
-   
+      input_speed = data.substring(1,5).toInt();
       input_step = data.substring(6,14).toInt();
       input_mode = data.substring(15,18).toInt();
-      input_torque = data.substring(19,20).toInt()/10.0;
-
-      if(data.substring(21) == "Up")
+      input_delay = data.substring(19,25).toInt();
+      if(data.substring(26) == "Up")
         setDirection(0);
-      if(data.substring(21) == "Down")
+      if(data.substring(26) == "Down")
         setDirection(1);
   
       // valid step modes: 1, 2, 4, 8, 16, 32, 64, 128
@@ -75,9 +73,9 @@ void step(float user_speed)
   digitalWrite(amisStepPin, HIGH);
   // delay = time each step takes, or
   // delay = ((60,000 msecs)/(200 steps)) * (1/RPM)
-  delay((60000/200) * (1/user_speed));
+  delay(input_delay * 1000);
   digitalWrite(amisStepPin, LOW);
-  delay((60000/200) * (1/user_speed));
+  delay(input_delay * 1000);
 }
 
 // Writes a high or low value to the direction pin to specify
