@@ -42,7 +42,7 @@ minHeight, maxHeight = 0, 200000
 #doorclose = True
 
 try:
-    arduino = Serial('/dev/ttyACM0', 115200, timeout = 0.5)
+    arduino = Serial('/dev/ttyACM0', 115200)
     print("successfully connected to orig arduino!")
 except:
     pass
@@ -277,7 +277,9 @@ class Ui_Form(QtGui.QWidget):
         taken to reach desired location.
         """
         print(float(self.lineEdit_distance.text()))
-        self.steppersteps = int (float(self.lineEdit_distance.text()) / (math.pi * float(self.lineEdit_wheeldiameter.text()))) * (200 * float(self.comboBox_mode.currentText()[2:]))
+        self.steppersteps = (float(self.lineEdit_distance.text()) / (math.pi * float(self.lineEdit_wheeldiameter.text()))) * (200 * float(self.comboBox_mode.currentText()[2:]))
+        print(self.steppersteps)
+        return self.steppersteps
     
     def delay(self):
         """
@@ -285,8 +287,10 @@ class Ui_Form(QtGui.QWidget):
         required to get the desired distance change (to account for rests between
         steps) and the mode (to account for microstepping).
         """
+        #Delay times are approximations as the steps will be rounded later
         self.delaytime = float(self.lineEdit_time.text()) / (2 * float(self.steppersteps))
         print("delay:", self.delaytime)
+        return self.delaytime
         
     def reqRPM(self):
         """
@@ -297,6 +301,7 @@ class Ui_Form(QtGui.QWidget):
         reqspeed_valid = True
         if reqspeed > 200 or reqspeed < 0:
             reqspeed_valid = False
+        print(reqspeed)
         return reqspeed, reqspeed_valid
 
     def collectMotorData(self):
@@ -315,7 +320,7 @@ class Ui_Form(QtGui.QWidget):
             steps, direction = self.level_calculations()
         else:
             #steps, steps_valid = QtCore.QString.toFloat(self.lineEdit_distance.text())
-            steps = (self.calculateSteps())
+            steps = int(self.calculateSteps())
             direction = str(self.comboBox_direction.currentText())
             if direction == "Up" and steps >= maxHeight - self.currentPosition:
                 steps_valid = True
@@ -347,7 +352,7 @@ class Ui_Form(QtGui.QWidget):
             #if steps < 0:
              #   self.errorMessage(8)
               #  steps = 0
-        steps = int(steps)
+        #steps = int(steps)
 
         # Do not step past the top and bottom of the maze
         if direction == "Up" and speed != 0:
@@ -365,22 +370,23 @@ class Ui_Form(QtGui.QWidget):
         # Multiply the number of steps by the reciprocal of the mode
         # This will not affect position tracking as it occurs after position tracking
         #print (mode)
-        self.sendMotorData(str(speed), str(self.steppersteps), self.comboBox_mode.currentText()[2:], direction, str(stepdelay))
+        self.sendMotorData(str(speed), str(int(self.steppersteps)), self.comboBox_mode.currentText()[2:], direction, str(stepdelay))
         
     def sendMotorData(self, speed, steps, mode, direction, delay):
         self.btn_run.setEnabled(False)
 
-        while len(speed) < 4:
-            speed = "0" + speed
+        #while len(speed) < 4:
+        #    speed = "0" + speed
 
-        while len(steps) < 8:
-            steps = "0" + steps
-        while len(mode) < 3:
-            mode = "0" + mode
-        while len(delay) < 6:
-            delay = "0" + delay
+        #while len(steps) < 8:
+        #    steps = "0" + steps
+        #while len(mode) < 3:
+        #    mode = "0" + mode
+        #while len(delay) < 6:
+        #    delay = "0" + delay
 
         data = 'x'+speed+'x'+steps+'x'+mode+'x'+delay+'x'+direction
+        print("stepper data:", data)
         self.command_history.appendPlainText(data)
         self.command_history.appendPlainText("Estimated time required (seconds): " + self.lineEdit_time.text())
 
