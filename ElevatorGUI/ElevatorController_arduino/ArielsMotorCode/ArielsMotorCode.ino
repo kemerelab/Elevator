@@ -9,6 +9,7 @@ float input_speed;
 float input_step;
 int input_mode;
 float input_torque;
+float input_delay;
 
 AMIS30543 stepper;
 
@@ -40,26 +41,43 @@ void setup()
 
 void loop()
 {
-  if(Serial.available()){
+  //Serial.println("moo");
+  if(Serial.available() && false){
       String data = Serial.readString();
       
       // convert speed from RPM to milliseconds per step
       // 1 RPM = 200/60 steps/sec
-      input_speed = data.substring(1,5).toInt();
-      input_step = data.substring(6,14).toInt();
-      input_mode = data.substring(15,18).toInt();
-      input_delay = data.substring(19,25).toInt();
-      if(data.substring(26) == "Up")
+      int indices[4];
+      int j = 0;
+      for (int i= 1; i < data.length(); ++i)
+      {
+        if (data.substring(i,i+1) == "x")
+        {
+           indices[j] = i;
+           ++j;
+        }
+      }                             
+      input_speed = data.substring(1, indices[0]).toInt();
+      input_step = data.substring(indices[0]+1, indices[1]).toInt();
+      input_mode = data.substring(indices[1]+1, indices[2]).toInt();
+      input_delay = data.substring(indices[2]+1, indices[3]).toInt();
+      if(data.substring(indices[3]+1, data.length()) == "Up")
         setDirection(0);
-      if(data.substring(26) == "Down")
+      if(data.substring(indices[3]+1, data.length()) == "Down")
         setDirection(1);
-  
+      
+      //Serial.println(input_speed);
+      //Serial.println(input_step);
+      //Serial.println(input_mode);
+      //Serial.println(input_delay);
+      //Serial.println(data.substring(indices[3]+1, data.length()));
+      
       // valid step modes: 1, 2, 4, 8, 16, 32, 64, 128
       stepper.setStepMode(input_mode);
 
       for (int x = 0; x < input_step; x++)
       {
-        step(input_speed);
+        step(input_delay);
         Serial.println(x);
       }
   }
@@ -67,7 +85,7 @@ void loop()
 
 // Sends a pulse on the NXT/STEP pin to tell the driver to take
 // one step, and also delays to control the speed of the motor.
-void step(float user_speed)
+void step(float input_delay)
 {
   // The NXT/STEP minimum high pulse width is 2 microseconds.
   digitalWrite(amisStepPin, HIGH);
