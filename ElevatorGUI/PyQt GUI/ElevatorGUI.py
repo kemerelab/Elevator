@@ -420,6 +420,7 @@ class Ui_Form(QtGui.QWidget):
                 arduinoservodoor.write("91")
                 globalvars.doorclose = not globalvars.doorclose
                 print globalvars.doorclose
+                print ("this one")
                 target.write("door open\n")
             except:
                 self.command_history.appendPlainText("Error reading from servo arduino\n")
@@ -452,25 +453,6 @@ class Ui_Form(QtGui.QWidget):
                     self.command_history.appendPlainText("Error writing to capacitive sensor arduino\n")
             except:
                 self.command_history.appendPlainText("Error writing to servo arduino\n")
-
-    def sendServoData(self):
-        # Open or close elevator door when called
-        if doorstat:
-            # When the door is open, command servo to close door by returning to position at 0 degrees
-            try:
-                arduinoservodoor.write("0")
-                doorstat = not doorstat
-            # Report error if servo data unable to cause door to close
-            except:
-                self.command_history.appendPlainText("Error sending servo data")
-        else:
-            # When the door is closed, command servo to open door by returning to position at 90 degrees
-            try:
-                arduinoservodoor.write("90")
-                doorstat = not doorstat
-            # Report error if servo data unable to cause door to open
-            except:
-                self.command_history.appendPlainText("Error sending servo data")
 
     def level_calculations(self):
         # This method is called in collectMotorData() and updateUI()
