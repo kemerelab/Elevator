@@ -42,7 +42,7 @@ minHeight, maxHeight = 0, 200000
 #doorclose = True
 
 try:
-    arduino = Serial('/dev/ttyACM0', 115200)
+    arduino = Serial('/dev/ttyACM0', 9600)
     print("successfully connected to orig arduino!")
 except:
     pass
@@ -152,7 +152,7 @@ class Ui_Form(QtGui.QWidget):
         self.lineEdit_time.setText("0")
         self.lineEdit_distance = QtGui.QLineEdit()
         self.lineEdit_distance.setMaximumSize(QtCore.QSize(100, 30))
-        self.lineEdit_distance.setText("12")
+        self.lineEdit_distance.setText("0")
         self.lineEdit_wheeldiameter = QtGui.QLineEdit()
         self.lineEdit_wheeldiameter.setText("1")
         self.comboBox_direction = QtGui.QComboBox()
@@ -385,7 +385,7 @@ class Ui_Form(QtGui.QWidget):
         #while len(delay) < 6:
         #    delay = "0" + delay
 
-        data = 'x'+speed+'x'+steps+'x'+mode+'x'+delay+'x'+direction
+        data = str('x'+speed+'x'+steps+'x'+mode+'x'+delay+'x'+direction)
         print("stepper data:", data)
         self.command_history.appendPlainText(data)
         self.command_history.appendPlainText("Estimated time required (seconds): " + self.lineEdit_time.text())
@@ -393,16 +393,20 @@ class Ui_Form(QtGui.QWidget):
         # self.sendServoData()
 
         try:
+            
             arduino.write(data)
-
+            self.update_progress(int(self.steppersteps))
+            
+            #arduino.write("On")
+            
             # In a separate thread, block new inputs until Arduino is ready
-            if self.steps != 0:
-                self.progress_bar.setRange(0, self.steps)
-                self.motor_progress = update_thread(self.steps)
-                self.motor_progress.start()
-                self.motor_progress.bar_value.connect(self.update_progress)
-            else:
-                self.update_progress(0)
+            #if self.steps != 0:
+                #self.progress_bar.setRange(0, self.steps)
+                #self.motor_progress = update_thread(self.steps)
+                #self.motor_progress.start()
+                #self.motor_progress.bar_value.connect(self.update_progress)
+            #else:
+                #self.update_progress(0)
         except:
             self.command_history.appendPlainText("The Arduino is not connected.")
             self.btn_run.setEnabled(True)
@@ -553,15 +557,15 @@ class Ui_Form(QtGui.QWidget):
 
     def update_progress(self, num):
         self.progress_bar.setValue(num)
-        self.btn_run.setText(str(num) + "/" + str(self.steps))
+        #self.btn_run.setText(str(num) + "/" + str(int(self.steppersteps)))
 
         # Allow new input when motor is done stepping
-        if num == self.steps:
+        if num == int(self.steppersteps):
             self.btn_run.setText("Run")
             self.btn_run.setEnabled(True)
             self.progress_bar.reset()
-            if self.preset_checkbox.checkState() == 2:
-                self.updateUI()
+            #if self.preset_checkbox.checkState() == 2:
+            self.updateUI()
 
 
 class update_thread(QtCore.QThread):
