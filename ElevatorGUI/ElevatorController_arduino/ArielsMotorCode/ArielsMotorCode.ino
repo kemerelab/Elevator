@@ -15,7 +15,7 @@ AMIS30543 stepper;
 
 void setup()
 {
-  Serial.begin(115200);
+  Serial.begin(9600);
   SPI.begin();
   stepper.init(amisSlaveSelect);
 
@@ -42,7 +42,7 @@ void setup()
 void loop()
 {
   //Serial.println("moo");
-  if(Serial.available() && false){
+  if(Serial.available()){
       String data = Serial.readString();
       
       // convert speed from RPM to milliseconds per step
@@ -57,20 +57,20 @@ void loop()
            ++j;
         }
       }                             
-      input_speed = data.substring(1, indices[0]).toInt();
+      input_speed = data.substring(1, indices[0]).toFloat();
       input_step = data.substring(indices[0]+1, indices[1]).toInt();
       input_mode = data.substring(indices[1]+1, indices[2]).toInt();
-      input_delay = data.substring(indices[2]+1, indices[3]).toInt();
+      input_delay = data.substring(indices[2]+1, indices[3]).toFloat();
       if(data.substring(indices[3]+1, data.length()) == "Up")
         setDirection(0);
       if(data.substring(indices[3]+1, data.length()) == "Down")
         setDirection(1);
       
-      //Serial.println(input_speed);
-      //Serial.println(input_step);
-      //Serial.println(input_mode);
-      //Serial.println(input_delay);
-      //Serial.println(data.substring(indices[3]+1, data.length()));
+      Serial.println(input_speed);
+      Serial.println(input_step);
+      Serial.println(input_mode);
+      Serial.println(input_delay);
+      Serial.println(data.substring(indices[3]+1, data.length()));
       
       // valid step modes: 1, 2, 4, 8, 16, 32, 64, 128
       stepper.setStepMode(input_mode);
@@ -78,7 +78,7 @@ void loop()
       for (int x = 0; x < input_step; x++)
       {
         step(input_delay);
-        Serial.println(x);
+        //Serial.println(x);
       }
   }
 }
@@ -106,3 +106,4 @@ void setDirection(bool dir)
   digitalWrite(amisDirPin, dir);
   delayMicroseconds(1);
 }
+
