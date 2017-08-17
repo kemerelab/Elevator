@@ -45,18 +45,21 @@ try:
     arduino = Serial('/dev/ttyACM0', 9600)
     print("successfully connected to orig arduino!")
 except:
+    arduino = None
     pass
 
 try:
     arduinoservodoor = Serial('/dev/ttyACM1', 9600)
     print("successfully connected to servo arduino!")
 except:
+    arduinoservodoor = None
     pass
     
 try:
     arduinoCapSense = Serial('/dev/ttyACM2', 115200)
     print("successfully connected to cap sensor arduino!")
 except:
+    arduinoCapSense = None
     pass    
 
 #doorclose = True
@@ -70,11 +73,12 @@ class Capacitance(QtCore.QThread):
    
    def run(self):
         while globalvars.quitThread == False:
-            arduinoCapSense.flushInput()
-            capdatatotal = arduinoCapSense.readline()
-            target.write(capdatatotal)
-            self.emit(QtCore.SIGNAL('CAP'), capdatatotal)
-            time.sleep(1.5)
+            if (arduinoCapSense is not None): 
+                arduinoCapSense.flushInput()
+                capdatatotal = arduinoCapSense.readline()
+                target.write(capdatatotal)
+                self.emit(QtCore.SIGNAL('CAP'), capdatatotal)
+                time.sleep(1.5)
 
 class Ui_Form(QtGui.QWidget):
     def __init__(self):
@@ -289,6 +293,7 @@ class Ui_Form(QtGui.QWidget):
         """
         #Delay times are approximations as the steps will be rounded later
         self.delaytime = float(self.lineEdit_time.text()) / (2 * float(self.steppersteps))
+        self.delaytime *= 1000
         print("delay:", self.delaytime)
         return self.delaytime
         
@@ -417,30 +422,33 @@ class Ui_Form(QtGui.QWidget):
     def sendServoData(self):
         if globalvars.doorclose:
             try:
-                arduinoservodoor.write("91")
+                arduinoservodoor.write("0")
                 globalvars.doorclose = not globalvars.doorclose
-                print globalvars.doorclose
-                print ("this one")
-                target.write("door open\n")
+                if(globalvars.doorclose):
+                    print("Door Closed")
+                else:
+                    print("Door Open")
+                if(arduinoCapSense is not None): 
+                    target.write("door open\n")
             except:
                 self.command_history.appendPlainText("Error reading from servo arduino\n")
         else:	
             try:
-                arduinoservodoor.write("-5")
-                time.sleep(1.5)
-                arduinoservodoor.write("-3")
-                time.sleep(1.5)
-                arduinoservodoor.write("-1")
+                arduinoservodoor.write("90")
                 globalvars.doorclose = not globalvars.doorclose
-                print globalvars.doorclose
+                if(globalvars.doorclose):
+                    print("Door Closed")
+                else:
+                    print("Door Open")
                 try:
                     #while True:
-                    arduinoCapSense.flushInput()
-                    capdata = arduinoCapSense.readline()
-                    target.write(capdata)
-                    target.write("door closed\n")
+                    if(arduinoCapSense is not None):
+                        arduinoCapSense.flushInput()
+                        capdata = arduinoCapSense.readline()
+                        target.write(capdata)
+                        target.write("door closed\n")
                     #target.write("\n")
-                    print capdata
+                        print capdata
                         #values = line.decode('ascii').split(':')
                         #print arduinoCapSense.readline()
                         #print (values)
