@@ -74,10 +74,12 @@ void loop()
       
       // valid step modes: 1, 2, 4, 8, 16, 32, 64, 128
       stepper.setStepMode(input_mode);
-
+      
       for (int x = 0; x < input_step; x++)
       {
+        //unsigned long t = micros();
         step(input_delay);
+        //Serial.println(micros()-t);
         //Serial.println(x);
       }
   }
@@ -91,9 +93,9 @@ void step(float input_delay)
   digitalWrite(amisStepPin, HIGH);
   // delay = time each step takes, or
   // delay = ((60,000 msecs)/(200 steps)) * (1/RPM)
-  delay(input_delay * 1000);
+  delayMicroseconds(input_delay * 1000);
   digitalWrite(amisStepPin, LOW);
-  delay(input_delay * 1000);
+  delayMicroseconds(input_delay * 1000);
 }
 
 // Writes a high or low value to the direction pin to specify
