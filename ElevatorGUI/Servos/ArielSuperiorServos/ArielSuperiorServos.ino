@@ -17,9 +17,9 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 //B
 #define SERVOBMIN  110
 #define SERVOBMAX  620
-#define SERVOB_0 620
+#define SERVOB_0 608
 //12 or 13 currently
-#define SERVOB_90 400
+#define SERVOB_90 385
 //95
 //C
 #define SERVOCMIN  169
@@ -79,7 +79,7 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 //N
 #define SERVONMIN  110
 #define SERVONMAX  623
-#define SERVON_0 190
+#define SERVON_0 208
 #define SERVON_90 420
 //O
 #define SERVOOMIN  170
