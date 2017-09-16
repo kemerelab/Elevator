@@ -440,6 +440,7 @@ class Ui_Form(QtGui.QWidget):
                     print("Door Closed")
                 else:
                     print("Door Open")
+                '''
                 try:
                     #while True:
                     if(arduinoCapSense is not None):
@@ -447,18 +448,11 @@ class Ui_Form(QtGui.QWidget):
                         capdata = arduinoCapSense.readline()
                         target.write(capdata)
                         target.write("door closed\n")
-                    #target.write("\n")
                         print capdata
-                        #values = line.decode('ascii').split(':')
-                        #print arduinoCapSense.readline()
-                        #print (values)
-                  #  time.sleep(0.001)
-                    #for byte in arduinoCapSense.read():
-                        #print(ord(byte))
-                        #byte_range = bytearray(b'\x85W\xe2\xa2I')
-                        #date_header = struct.unpack('>BL', byte_range)
+                        
                 except:
                     self.command_history.appendPlainText("Error writing to capacitive sensor arduino\n")
+            '''
             except:
                 self.command_history.appendPlainText("Error writing to servo arduino\n")
 
