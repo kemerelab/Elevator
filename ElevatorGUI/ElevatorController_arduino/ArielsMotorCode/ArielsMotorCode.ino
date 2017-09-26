@@ -78,9 +78,9 @@ void loop()
       for (int x = 0; x < input_step; x++)
       {
         //unsigned long t = micros();
-        step(input_delay);
+        step(input_delay * 1000);
         //Serial.println(micros()-t);
-        //Serial.println(x);
+        Serial.println(x);
       }
   }
 }
@@ -93,9 +93,9 @@ void step(float input_delay)
   digitalWrite(amisStepPin, HIGH);
   // delay = time each step takes, or
   // delay = ((60,000 msecs)/(200 steps)) * (1/RPM)
-  delayMicroseconds(input_delay * 1000);
+  delayMicroseconds(input_delay);
   digitalWrite(amisStepPin, LOW);
-  delayMicroseconds(input_delay * 1000);
+  delayMicroseconds(input_delay);
 }
 
 // Writes a high or low value to the direction pin to specify
