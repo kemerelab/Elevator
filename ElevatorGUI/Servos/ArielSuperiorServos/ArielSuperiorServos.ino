@@ -15,11 +15,11 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 #define SERVOA_0 260
 #define SERVOA_90 495
 //B
-#define SERVOBMIN  171
-#define SERVOBMAX  558
-#define SERVOB_0 235
+#define SERVOBMIN  110
+#define SERVOBMAX  620
+#define SERVOB_0 608
 //12 or 13 currently
-#define SERVOB_90 440
+#define SERVOB_90 385
 //95
 //C
 #define SERVOCMIN  169
@@ -77,10 +77,10 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 #define SERVOM_0 250
 #define SERVOM_90 480
 //N
-#define SERVONMIN  171
-#define SERVONMAX  561
-#define SERVON_0 220
-#define SERVON_90 430
+#define SERVONMIN  110
+#define SERVONMAX  623
+#define SERVON_0 208
+#define SERVON_90 420
 //O
 #define SERVOOMIN  170
 #define SERVOOMAX  556
@@ -165,7 +165,9 @@ void loop() {
     int cow = input_degree;
       while(state > input_degree){
         //Serial.println(input_degree);
-        pulselenB = map(90 - state, 0, 90, SERVOB_0, SERVOB_90);
+//        pulselenB = map(90 - state, 0, 90, SERVOB_0, SERVOB_90);
+//        pulselenN = map(state, 0, 90, SERVON_0, SERVON_90);
+        pulselenB = map(state, 0, 90, SERVOB_0, SERVOB_90);
         pulselenN = map(state, 0, 90, SERVON_0, SERVON_90);
         pwm.setPWM(1, 0, pulselenB);
         pwm.setPWM(13, 0, pulselenN);
@@ -176,7 +178,9 @@ void loop() {
     //Opening!
       while(state < input_degree){
         //Serial.println(input_degree);
-        pulselenB = map(90 - state, 0, 90, SERVOB_0, SERVOB_90);
+//        pulselenB = map(90 - state, 0, 90, SERVOB_0, SERVOB_90);
+//        pulselenN = map(state, 0, 90, SERVON_0, SERVON_90);
+        pulselenB = map(state, 0, 90, SERVOB_0, SERVOB_90);
         pulselenN = map(state, 0, 90, SERVON_0, SERVON_90);
         pwm.setPWM(1, 0, pulselenB);
         pwm.setPWM(13, 0, pulselenN);

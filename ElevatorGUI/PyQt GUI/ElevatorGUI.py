@@ -15,6 +15,7 @@ from serial import *
 from threading import Thread, Event
 
 import multiprocessing
+import math
 
 import socket
 import os
@@ -35,29 +36,33 @@ import struct
 import Queue
 ##### end
 
+minHeight, maxHeight = 0, 200000
+
 #global doorclose
 #doorclose = True
 
 try:
-    arduino = Serial('/dev/ttyACM0', 115200, timeout = 0.5)
+    arduino = Serial('/dev/ttyACM0', 9600)
     print("successfully connected to orig arduino!")
 except:
+    arduino = None
     pass
 
 try:
     arduinoservodoor = Serial('/dev/ttyACM1', 9600)
     print("successfully connected to servo arduino!")
 except:
+    arduinoservodoor = None
     pass
     
 try:
     arduinoCapSense = Serial('/dev/ttyACM2', 115200)
     print("successfully connected to cap sensor arduino!")
 except:
+    arduinoCapSense = None
     pass    
 
 #doorclose = True
-
 target = open("/home/kemerelab/Desktop/CapSenseData.out", 'w')
 
 class Capacitance(QtCore.QThread):
@@ -68,17 +73,19 @@ class Capacitance(QtCore.QThread):
    
    def run(self):
         while globalvars.quitThread == False:
-            arduinoCapSense.flushInput()
-            capdatatotal = arduinoCapSense.readline()
-            target.write(capdatatotal)
-            self.emit(QtCore.SIGNAL('CAP'), capdatatotal)
-            time.sleep(1.5)
+            if (arduinoCapSense is not None): 
+                arduinoCapSense.flushInput()
+                capdatatotal = arduinoCapSense.readline()
+                target.write(capdatatotal)
+                self.emit(QtCore.SIGNAL('CAP'), capdatatotal)
+                time.sleep(1.5)
 
 class Ui_Form(QtGui.QWidget):
     def __init__(self):
         super(Ui_Form, self).__init__()
         self.currentPosition = 0
         self.level_position = {1:0, 2:1000, 3:2000}
+
 #        self.doorclose = True
         self.setupUi()
     
@@ -117,14 +124,15 @@ class Ui_Form(QtGui.QWidget):
         label_motorState = QtGui.QLabel("Stepper Motor Parameters")
         label_motorState.setFont(font)
 
-        label_speed = QtGui.QLabel("Speed (RPM):")
-        label_steps = QtGui.QLabel("Steps:")
+        label_time = QtGui.QLabel("Time Between Levels (seconds):")
+        label_steps = QtGui.QLabel("Distance (in):")
+        label_wheeldiameter = QtGui.QLabel("Wheel Diameter (in)")
         label_direction = QtGui.QLabel("Direction:")
         label_mode = QtGui.QLabel("Mode:")
-        label_torque = QtGui.QLabel("Torque:")
+        #label_torque = QtGui.QLabel("Torque:")
 		
-        label_percentPixels = QtGui.QLabel("Percent Pixel Difference: ") #LOOK HERE	
-        label_percentPixels.setFont(font)
+        label_capacitance = QtGui.QLabel("Capacitance: ") #LOOK HERE	
+        label_capacitance.setFont(font)
 
         self.capacitance = QtGui.QLCDNumber(self) #LOOK HERE 
         self.capacitance.setFont(font)
@@ -135,33 +143,32 @@ class Ui_Form(QtGui.QWidget):
         palette.setBrush(QtGui.QPalette.Active, QtGui.QPalette.Dark, brush)
         self.capacitance.setPalette(palette)
 
-       
-        
+        self.capacitance.setDigitCount(8)
         self.threadclass = Capacitance()
         self.threadclass.start()
 		
-        self.connect(self.threadclass, QtCore.SIGNAL('CAP'), self.updateCapacitance)
-
-        
+        self.connect(self.threadclass, QtCore.SIGNAL('CAP'), self.updateCapacitance)        
         
         self.capacitance.display(0) # just so something is there
                 
-
-        self.lineEdit_speed = QtGui.QLineEdit()
-        self.lineEdit_speed.setMaximumSize(QtCore.QSize(100, 30))
-        self.lineEdit_speed.setText("0")
-        self.lineEdit_steps = QtGui.QLineEdit()
-        self.lineEdit_steps.setMaximumSize(QtCore.QSize(100, 30))
-        self.lineEdit_steps.setText("0")
+        self.lineEdit_time = QtGui.QLineEdit()
+        self.lineEdit_time.setMaximumSize(QtCore.QSize(100, 30))
+        self.lineEdit_time.setText("0")
+        self.lineEdit_distance = QtGui.QLineEdit()
+        self.lineEdit_distance.setMaximumSize(QtCore.QSize(100, 30))
+        self.lineEdit_distance.setText("0")
+        self.lineEdit_wheeldiameter = QtGui.QLineEdit()
+        self.lineEdit_wheeldiameter.setText("1")
         self.comboBox_direction = QtGui.QComboBox()
         self.comboBox_direction.addItems(["Up", "Down"])
         self.comboBox_mode = QtGui.QComboBox()
         self.comboBox_mode.addItems(["1/1", "1/2", "1/4", "1/8", "1/16", "1/32", "1/64", "1/128"])
-        self.comboBox_torque = QtGui.QComboBox()
-        self.comboBox_torque.addItems(["10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%"])
-        self.comboBox_torque.setCurrentIndex(4)
+        self.comboBox_mode.setCurrentIndex(0)
+        #self.comboBox_torque = QtGui.QComboBox()
+        #self.comboBox_torque.addItems(["10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%"])
+        #self.comboBox_torque.setCurrentIndex(4)
 
-        
+        #Preset Levels >>> assign each to a 12" distance later
 
         self.preset_checkbox = QtGui.QCheckBox("Use preset elevator levels")
         self.preset_checkbox.setCheckState(False)
@@ -171,16 +178,12 @@ class Ui_Form(QtGui.QWidget):
         self.comboBox_level.addItems(["1", "2", "3"])
         self.comboBox_level.setEnabled(False)
 
-       
-       
-
-
-
         label_assign = QtGui.QLabel("Assign position to level?")
         self.btn_assign = QtGui.QPushButton("Assign")
         self.btn_assign.setEnabled(False)
 
         self.btn_run = QtGui.QPushButton("Run")
+        self.btn_doorstat = QtGui.QPushButton("Open/Close")
         self.progress_bar = QtGui.QProgressBar()
         self.btn_doorstat = QtGui.QPushButton("Open/Close")
 
@@ -190,7 +193,7 @@ class Ui_Form(QtGui.QWidget):
         self.command_history.setMaximumSize(QtCore.QSize(1000, 500))
         self.command_history.setReadOnly(True)
         self.command_history.appendPlainText("Note: The speed will be scaled according to the microstepping mode.")
-        self.command_history.appendPlainText("Note: The speed and steps inputs must be positive integers. Numbers that are not integers will be rounded down.")
+        self.command_history.appendPlainText("Note: The time and distance inputs must be positive integers. Numbers that are not integers will be rounded down.")
         self.command_history.appendPlainText("")
 
         font = QtGui.QFont("Helvetica", 12)
@@ -207,12 +210,12 @@ class Ui_Form(QtGui.QWidget):
         formLayout = QtGui.QFormLayout()
         formLayout.setFieldGrowthPolicy(QtGui.QFormLayout.AllNonFixedFieldsGrow)
         formLayout.setLabelAlignment(QtCore.Qt.AlignLeft)
-        formLayout.addRow(label_speed, self.lineEdit_speed)
-        formLayout.addRow(label_steps, self.lineEdit_steps)
+        formLayout.addRow(label_time, self.lineEdit_time)
+        formLayout.addRow(label_steps, self.lineEdit_distance)
         formLayout.addRow(label_direction, self.comboBox_direction)
         formLayout.addRow(label_mode, self.comboBox_mode)
-        formLayout.addRow(label_torque, self.comboBox_torque)
-		
+        #formLayout.addRow(label_torque, self.comboBox_torque)
+        formLayout.addRow(label_wheeldiameter, self.lineEdit_wheeldiameter)
        
 
         formLayout2 = QtGui.QFormLayout()
@@ -269,42 +272,92 @@ class Ui_Form(QtGui.QWidget):
 
     def updateCapacitance(self, val):
         self.capacitance.display(val)
-
-
+    
+    def calculateSteps (self):
+        """
+        Distance to be traveled divided by the circumference of the wheel (distance
+        covered in one rotation) and multiplied by 200 (number of steps in one 
+        rotation of the stepper) in order to find number of steps that need to be
+        taken to reach desired location.
+        """
+        print(float(self.lineEdit_distance.text()))
+        self.steppersteps = (float(self.lineEdit_distance.text()) / (math.pi * float(self.lineEdit_wheeldiameter.text()))) * (200 * float(self.comboBox_mode.currentText()[2:]))
+        print(self.steppersteps)
+        return self.steppersteps
+    
+    def delay(self):
+        """
+        Total time for a level change divided by 2 times the number of steps 
+        required to get the desired distance change (to account for rests between
+        steps) and the mode (to account for microstepping).
+        """
+        #Delay times are approximations as the steps will be rounded later
+        self.delaytime = float(self.lineEdit_time.text()) / (2 * float(self.steppersteps))
+        self.delaytime *= 1000
+        print("delay:", self.delaytime)
+        return self.delaytime
+        
+    def reqRPM(self):
+        """
+        Find RPM based off of number of steps needed to move a desired distance 
+        times mode, and divided by 200
+        """
+        reqspeed = (self.steppersteps)/(200 * int(self.comboBox_mode.currentText()[2:]))
+        reqspeed_valid = True
+        if reqspeed > 200 or reqspeed < 0:
+            reqspeed_valid = False
+        print(reqspeed)
+        return reqspeed, reqspeed_valid
 
     def collectMotorData(self):
-        minHeight, maxHeight = 0, 200000
-        speed, speed_valid = QtCore.QString.toFloat(self.lineEdit_speed.text())
-        torque = str(self.comboBox_torque.currentText()[0])
+        
+        #speed, speed_valid = QtCore.QString.toFloat(self.lineEdit_speed.text())
+        #torque = str(self.comboBox_torque.currentText()[0])
 
         # If preset levels are used, calculate steps and direction
-        if self.preset_checkbox.checkState() == 0:
-            steps, steps_valid = QtCore.QString.toFloat(self.lineEdit_steps.text())
-            direction = str(self.comboBox_direction.currentText())
+
+        #### NEEDS TO BE REDONE********
+
+        #Not using preset levels
+
         if self.preset_checkbox.checkState() == 2:
             steps_valid = True
             steps, direction = self.level_calculations()
-
-        if speed_valid == False or steps_valid == False:
-            self.errorMessage(0)
-        if speed == 0 and speed_valid == True:
-            self.errorMessage(1)
-        if speed > 150 or speed < 0:
-            self.errorMessage(2)
+        else:
+            #steps, steps_valid = QtCore.QString.toFloat(self.lineEdit_distance.text())
+            steps = int(self.calculateSteps())
+            direction = str(self.comboBox_direction.currentText())
+            if direction == "Up" and steps >= maxHeight - self.currentPosition:
+                steps_valid = True
+            elif direction == 'Down' and steps <= self.currentPosition - minHeight:
+                steps_valid = True
+            else:
+                steps_valid = False
+        
+        speed, speed_valid = self.reqRPM()
+        
+        stepdelay = self.delay()
+        
+        #if speed_valid == False or steps_valid == False:
+         #   self.errorMessage(0)
+        #if speed == 0 and speed_valid == True:
+         #   self.errorMessage(1)
+        #if speed > 200 or speed < 0:
+         #   self.errorMessage(2)
             #self.level_position(2)
-            speed = 0
-            steps = 0
-        speed = int(speed)
-        if(speed != 0):
-            if steps == 0 and steps_valid == True:
-                if self.preset_checkbox.checkState() == 0:
-                    self.errorMessage(3)
-                if self.preset_checkbox.checkState() == 2:
-                    self.errorMessage(6)
-            if steps < 0:
-                self.errorMessage(8)
-                steps = 0
-        steps = int(steps)
+          #  speed = 0
+           # steps = 0
+        #speed = int(speed)
+        #if(speed != 0):
+            #if steps == 0 and steps_valid == True:
+                #if self.preset_checkbox.checkState() == 0:
+                 #   self.errorMessage(3)
+                #if self.preset_checkbox.checkState() == 2:
+               #     self.errorMessage(6)
+            #if steps < 0:
+             #   self.errorMessage(8)
+              #  steps = 0
+        #steps = int(steps)
 
         # Do not step past the top and bottom of the maze
         if direction == "Up" and speed != 0:
@@ -318,49 +371,47 @@ class Ui_Form(QtGui.QWidget):
                 steps = self.currentPosition - minHeight
             self.currentPosition -= int(steps)
 
-        mode = int(self.comboBox_mode.currentText()[2:])
-        
-        speed = int(speed) * mode
-        try:
-            required_time = (steps * mode)/(speed * float(200./60))
-        except:
-            required_time = 0.0
-
         # Using a microstepping mode of 1/2, for example, halves the number of steps
         # Multiply the number of steps by the reciprocal of the mode
         # This will not affect position tracking as it occurs after position tracking
-        self.steps = int(steps) * mode
         #print (mode)
-        self.sendMotorData(str(speed), str(self.steps), str(mode), torque, direction, required_time)
+        self.sendMotorData(str(speed), str(int(self.steppersteps)), self.comboBox_mode.currentText()[2:], direction, str(stepdelay))
         
-    def sendMotorData(self, speed, steps, mode, torque, direction, required_time):
+    def sendMotorData(self, speed, steps, mode, direction, delay):
         self.btn_run.setEnabled(False)
 
-        while len(speed) < 4:
-            speed = "0" + speed
+        #while len(speed) < 4:
+        #    speed = "0" + speed
 
-        while len(steps) < 8:
-            steps = "0" + steps
-        while len(mode) < 3:
-            mode = "0" + mode
+        #while len(steps) < 8:
+        #    steps = "0" + steps
+        #while len(mode) < 3:
+        #    mode = "0" + mode
+        #while len(delay) < 6:
+        #    delay = "0" + delay
 
-        data = 'x'+speed+'x'+steps+'x'+mode+'x'+torque+'x'+direction
+        data = str('x'+speed+'x'+steps+'x'+mode+'x'+delay+'x'+direction)
+        print("stepper data:", data)
         self.command_history.appendPlainText(data)
-        self.command_history.appendPlainText("Estimated time required (seconds): " + str(required_time))
+        self.command_history.appendPlainText("Estimated time required (seconds): " + self.lineEdit_time.text())
 
         # self.sendServoData()
 
         try:
+            
             arduino.write(data)
-
+            self.update_progress(int(self.steppersteps))
+            
+            #arduino.write("On")
+            
             # In a separate thread, block new inputs until Arduino is ready
-            if self.steps != 0:
-                self.progress_bar.setRange(0, self.steps)
-                self.motor_progress = update_thread(self.steps)
-                self.motor_progress.start()
-                self.motor_progress.bar_value.connect(self.update_progress)
-            else:
-                self.update_progress(0)
+            #if self.steps != 0:
+                #self.progress_bar.setRange(0, self.steps)
+                #self.motor_progress = update_thread(self.steps)
+                #self.motor_progress.start()
+                #self.motor_progress.bar_value.connect(self.update_progress)
+            #else:
+                #self.update_progress(0)
         except:
             self.command_history.appendPlainText("The Arduino is not connected.")
             self.btn_run.setEnabled(True)
@@ -371,39 +422,37 @@ class Ui_Form(QtGui.QWidget):
     def sendServoData(self):
         if globalvars.doorclose:
             try:
-                arduinoservodoor.write("91")
+                arduinoservodoor.write("0")
                 globalvars.doorclose = not globalvars.doorclose
-                print globalvars.doorclose
-                target.write("door open\n")
+                if(globalvars.doorclose):
+                    print("Door Closed")
+                else:
+                    print("Door Open")
+                if(arduinoCapSense is not None): 
+                    target.write("door open\n")
             except:
                 self.command_history.appendPlainText("Error reading from servo arduino\n")
         else:	
             try:
-                arduinoservodoor.write("-5")
-                time.sleep(1.5)
-                arduinoservodoor.write("-3")
-                time.sleep(1.5)
-                arduinoservodoor.write("-1")
+                arduinoservodoor.write("90")
                 globalvars.doorclose = not globalvars.doorclose
-                print globalvars.doorclose
+                if(globalvars.doorclose):
+                    print("Door Closed")
+                else:
+                    print("Door Open")
+                '''
                 try:
                     #while True:
-                    arduinoCapSense.flushInput()
-                    capdata = arduinoCapSense.readline()
-                    target.write(capdata)
-                    target.write("door closed\n")
-                    #target.write("\n")
-                    print capdata
-                        #values = line.decode('ascii').split(':')
-                        #print arduinoCapSense.readline()
-                        #print (values)
-                  #  time.sleep(0.001)
-                    #for byte in arduinoCapSense.read():
-                        #print(ord(byte))
-                        #byte_range = bytearray(b'\x85W\xe2\xa2I')
-                        #date_header = struct.unpack('>BL', byte_range)
+                    if(arduinoCapSense is not None):
+                        arduinoCapSense.flushInput()
+                        capdata = arduinoCapSense.readline()
+                        target.write(capdata)
+                        target.write("door closed\n")
+                        print capdata
+                        
                 except:
                     self.command_history.appendPlainText("Error writing to capacitive sensor arduino\n")
+            '''
             except:
                 self.command_history.appendPlainText("Error writing to servo arduino\n")
 
@@ -440,14 +489,14 @@ class Ui_Form(QtGui.QWidget):
         steps, direction = self.level_calculations()
         # If preset levels are used, disable corresponding manual inputs
         if self.preset_checkbox.checkState() == 0:
-            self.lineEdit_steps.setEnabled(True)
-            self.lineEdit_steps.setText("0")
+            self.lineEdit_distance.setEnabled(True)
+            self.lineEdit_distance.setText("0")
             self.comboBox_direction.setEnabled(True)
             self.comboBox_level.setEnabled(False)
             self.btn_assign.setEnabled(False)
         if self.preset_checkbox.checkState() == 2:
-            self.lineEdit_steps.setEnabled(False)
-            self.lineEdit_steps.setText(str(steps))
+            self.lineEdit_distance.setEnabled(False)
+            self.lineEdit_distance.setText(str(steps))
             self.comboBox_direction.setEnabled(False)
             if direction == "Up":
                 self.comboBox_direction.setCurrentIndex(0)
@@ -492,15 +541,15 @@ class Ui_Form(QtGui.QWidget):
 
     def update_progress(self, num):
         self.progress_bar.setValue(num)
-        self.btn_run.setText(str(num) + "/" + str(self.steps))
+        #self.btn_run.setText(str(num) + "/" + str(int(self.steppersteps)))
 
         # Allow new input when motor is done stepping
-        if num == self.steps:
+        if num == int(self.steppersteps):
             self.btn_run.setText("Run")
             self.btn_run.setEnabled(True)
             self.progress_bar.reset()
-            if self.preset_checkbox.checkState() == 2:
-                self.updateUI()
+            #if self.preset_checkbox.checkState() == 2:
+            self.updateUI()
 
 
 class update_thread(QtCore.QThread):
@@ -650,6 +699,9 @@ def callRewardWells():
     trigger6 = 8
     pump6 = 26
 
+    cap_resetpin = 21
+    GPIO.setup(cap_resetpin, GPIO.OUT)
+
     GPIO.setup(pump1, GPIO.OUT)
     GPIO.setup(trigger1, GPIO.IN)
     GPIO.setup(pump2, GPIO.OUT)
@@ -671,6 +723,7 @@ def callRewardWells():
     GPIO.output(pump4, LOW)
     GPIO.output(pump5, LOW)
     GPIO.output(pump6, LOW)
+    GPIO.output(cap_resetpin, LOW)
     
 
     while globalvars.quitThread == False:
@@ -714,10 +767,12 @@ def callRewardWells():
             #print(trig2input)
             if trig1input == True and checker1 == 1: 
                 GPIO.output(pump1, HIGH)
+                GPIO.output(cap_resetpin, HIGH)
                 print "triggering reward! :)      1"
                 checker2 = 0	    
                 time.sleep(1)
                 GPIO.output(pump1, LOW)
+                GPIO.output(cap_resetpin, LOW)
                 checker1 = 0
                 wellnum = 1
     #            print checker2
@@ -728,10 +783,12 @@ def callRewardWells():
             
             elif trig2input == True and checker2 == 1: 
                 GPIO.output(pump2, HIGH)
+                GPIO.output(cap_resetpin, HIGH)
                 print "triggering reward! :)     2"
                 checker1 = 0        
                 time.sleep(1)
                 GPIO.output(pump2, LOW)
+                GPIO.output(cap_resetpin, LOW)
                 checker2 = 0
                 wellnum = 2
     #            print checker1
@@ -742,10 +799,12 @@ def callRewardWells():
             
             elif GPIO.input(trigger3) == True and checker1 == 3: 
                 GPIO.output(pump3, HIGH)
+                GPIO.output(cap_resetpin, HIGH)
                 print "triggering reward! :)      3"
                 checker4 = 0	    
                 time.sleep(1)
                 GPIO.output(pump3, LOW)
+                GPIO.output(cap_resetpin, LOW)
                 checker3 = 0
                 wellnum = 3
                 print wellnum
@@ -756,10 +815,12 @@ def callRewardWells():
                 
             elif GPIO.input(trigger4) == True and checker4 == 1: 
                 GPIO.output(pump4, HIGH)
+                GPIO.output(cap_resetpin, HIGH)
                 print "triggering reward! :)     4"
                 checker3 = 0        
                 time.sleep(1)
                 GPIO.output(pump4, LOW)
+                GPIO.output(cap_resetpin, LOW)
                 checker4 = 0
                 wellnum = 4
     #            print checker3
@@ -769,10 +830,12 @@ def callRewardWells():
                 
             elif GPIO.input(trigger5) == True and checker5 == 1: 
                 GPIO.output(pump5, HIGH)
+                GPIO.output(cap_resetpin, HIGH)
                 print "triggering reward! :)      5"
                 checker6 = 0	    
                 time.sleep(1)
                 GPIO.output(pump5, LOW)
+                GPIO.output(cap_resetpin, LOW)
                 checker5 = 0
                 wellnum = 5
     #            print checker6
@@ -782,10 +845,12 @@ def callRewardWells():
                 
             elif GPIO.input(trigger6) == True and checker6 == 1: 
                 GPIO.output(pump6, HIGH)
+                GPIO.output(cap_resetpin, HIGH)
                 print "triggering reward! :)     6"
                 checker5 = 0        
                 time.sleep(1)
                 GPIO.output(pump6, LOW)
+                GPIO.output(cap_resetpin, LOW)
                 checker6 = 0
                 wellnum = 6
     #            print checker5
