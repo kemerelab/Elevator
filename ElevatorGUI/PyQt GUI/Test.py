@@ -909,7 +909,13 @@ if __name__ == '__main__':
     t = time.time()
     elapsed = time.time() - t
     while elapsed < (60 * 60):
-        
+        arduino.write("x3.81971863421x97784x128x0.0153398078789xUp")
+        arduino.write("x3.18309886184e-08x0x1x235619449.019xUp")
+        time.sleep(15)
+        arduino.write("x3.81971863421x97784x128x0.0153398078789xDown")
+        arduino.write("x3.18309886184e-08x0x1x235619449.019xUp")
+        time.sleep(15)
+        elapsed = time.time() - t
 
 #    ex.raise_()
 

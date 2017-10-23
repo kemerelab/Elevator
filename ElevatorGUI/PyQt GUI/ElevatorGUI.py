@@ -42,7 +42,7 @@ minHeight, maxHeight = 0, 200000
 #doorclose = True
 
 try:
-    arduino = Serial('/dev/ttyACM0', 9600)
+    arduino = Serial('/dev/ttyACM2', 9600)
     print("successfully connected to orig arduino!")
 except:
     arduino = None
@@ -56,7 +56,7 @@ except:
     pass
     
 try:
-    arduinoCapSense = Serial('/dev/ttyACM2', 115200)
+    arduinoCapSense = Serial('/dev/ttyACM0', 115200)
     print("successfully connected to cap sensor arduino!")
 except:
     arduinoCapSense = None
