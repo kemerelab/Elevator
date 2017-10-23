@@ -82,6 +82,8 @@ void loop()
         //Serial.println(micros()-t);
         Serial.println(x);
       }
+
+      Serial.flush();
   }
 }
 
